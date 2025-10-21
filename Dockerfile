@@ -22,16 +22,21 @@ FROM python:3.11-slim
 # 设置工作目录
 WORKDIR /app
 
-# 安装系统依赖
+# 安装系统依赖（包括构建工具）
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制Python依赖文件
 COPY requirements.txt .
 
-# 安装Python依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 升级pip并安装Python依赖
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 复制后端代码
 COPY server.py .
