@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+venv
+__pycache__
+*.pyc
+
+# Build outputs (will be generated during build)
+dist
+
+# Development files
+.vscode
+.idea
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data files (don't include in image)
+data/files/*
+data/*.json
+*.pdf
+
+# Temporary files
+*.tmp
+*.temp
+test-*.txt
+test-*.js
+test-*.html

@@ -112,3 +112,71 @@ python3 server.py
 ## License
 
 MIT
+
+## 部署到Railway
+
+### 方式一：通过Railway网站部署（推荐）
+
+1. **访问Railway** - https://railway.app
+2. **登录/注册** - 使用GitHub账号登录
+3. **新建项目** - 点击"New Project"
+4. **从GitHub部署**:
+   - 选择"Deploy from GitHub repo"
+   - 选择 `chat-app-ai-summary` 仓库
+   - Railway会自动检测Dockerfile并开始构建
+
+5. **配置环境变量**:
+   - 进入项目设置 > Variables
+   - 添加环境变量：
+     - `ANTHROPIC_API_KEY`: 你的Claude API密钥（可选）
+     - `PORT`: `8080` (Railway会自动设置)
+
+6. **部署完成**:
+   - 等待构建完成（首次约3-5分钟）
+   - 点击"Generate Domain"生成公网访问地址
+   - 访问生成的URL即可使用
+
+### 方式二：使用Railway CLI
+
+```bash
+# 安装Railway CLI
+npm install -g @railway/cli
+
+# 登录
+railway login
+
+# 初始化项目
+railway init
+
+# 部署
+railway up
+
+# 设置环境变量
+railway variables set ANTHROPIC_API_KEY=your-api-key
+
+# 生成域名
+railway domain
+```
+
+### 部署说明
+
+- ✅ 使用Dockerfile自动构建前后端
+- ✅ 前端自动打包到dist目录
+- ✅ 单一容器同时运行前后端
+- ✅ 支持WebSocket连接
+- ✅ 自动HTTPS和域名
+
+### 注意事项
+
+1. **免费计划**限制：
+   - 每月500小时运行时间
+   - 有限的资源配额
+   - 详见：https://railway.app/pricing
+
+2. **数据持久化**：
+   - 默认配置文件存储在容器内，重启会丢失
+   - 如需持久化，需配置Railway Volume
+
+3. **环境变量**：
+   - 必须在Railway设置中配置`ANTHROPIC_API_KEY`
+   - 如不配置，将使用mock总结功能
