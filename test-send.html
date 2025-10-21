@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><title>测试发送消息</title></head>
+<body>
+<h1>测试发送消息</h1>
+<div id="log"></div>
+<script>
+const log = (msg) => {
+    document.getElementById('log').innerHTML += '<p>' + msg + '</p>';
+    console.log(msg);
+};
+
+const ws = new WebSocket('ws://localhost:8080/ws');
+
+ws.onopen = () => {
+    log('✅ 连接成功');
+    
+    // 注册用户
+    const register = {type: 'register', username: 'test123'};
+    ws.send(JSON.stringify(register));
+    log('发送注册: ' + JSON.stringify(register));
+    
+    // 2秒后发送消息
+    setTimeout(() => {
+        const msg = {type: 'send_message', to: 'budd', content: 'Hello from test', content_type: 'text', timestamp: new Date().toISOString()};
+        ws.send(JSON.stringify(msg));
+        log('📤 发送消息: ' + JSON.stringify(msg));
+    }, 2000);
+};
+
+ws.onmessage = (e) => {
+    log('📩 收到: ' + e.data);
+};
+
+ws.onerror = (e) => {
+    log('❌ 错误: ' + e);
+};
+</script>
+</body>
+</html>

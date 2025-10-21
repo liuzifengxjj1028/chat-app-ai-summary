@@ -1,0 +1,689 @@
+{
+  "bud_uu": [
+    {
+      "from": "uu",
+      "to": "bud",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:35:52.413Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "budd_uu": [
+    {
+      "from": "budd",
+      "to": "uu",
+      "content": "hi ",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:36:08.166Z",
+      "read": false,
+      "location": "未知位置"
+    },
+    {
+      "from": "budd",
+      "to": "uu",
+      "content": "?",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:36:23.004Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "bud_o p": [
+    {
+      "from": "bud",
+      "to": "o p",
+      "content": "?",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:39:04.637Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "bud_pp": [
+    {
+      "from": "pp",
+      "to": "bud",
+      "content": "aa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:39:17.988Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "pp",
+      "content": "ji",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:15:59.381Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "pp",
+      "to": "bud",
+      "content": "?",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:16:08.252Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "pp",
+      "content": "?",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:16:11.987Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "pp",
+      "to": "bud",
+      "content": "爱你哦",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:16:29.907Z",
+      "read": true,
+      "location": "未知位置"
+    }
+  ],
+  "budd_test123": [
+    {
+      "from": "test123",
+      "to": "budd",
+      "content": "Hello from test",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:41:44.216Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "test123",
+      "to": "budd",
+      "content": "Hello from test",
+      "content_type": "text",
+      "timestamp": "2025-10-20T09:42:33.397Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "budd",
+      "to": "test123",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:06:17.709Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "budd_pp": [
+    {
+      "from": "budd",
+      "to": "pp",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:06:29.584Z",
+      "read": false,
+      "location": "未知位置"
+    },
+    {
+      "from": "pp",
+      "to": "budd",
+      "content": "qww",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:06:39.027Z",
+      "read": true,
+      "location": "未知位置"
+    }
+  ],
+  "bud_oo": [
+    {
+      "from": "oo",
+      "to": "bud",
+      "content": "aa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:08:06.941Z",
+      "read": false,
+      "location": "未知位置"
+    },
+    {
+      "from": "oo",
+      "to": "bud",
+      "content": "?",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:08:17.144Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "aaa_pp": [
+    {
+      "from": "pp",
+      "to": "aaa",
+      "content": "aaa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:08:38.972Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "不对_哦哦": [
+    {
+      "from": "不对",
+      "to": "哦哦",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:11:02.520Z",
+      "read": false,
+      "location": "未知位置"
+    },
+    {
+      "from": "不对",
+      "to": "哦哦",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:11:21.284Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "bud_op": [
+    {
+      "from": "bud",
+      "to": "op",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T10:22:39.123Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "op",
+      "content": "hi ",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:14:39.251Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "op",
+      "content": "o ",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:14:42.812Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "pp",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:16:23.890Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "pp",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:16:27.591Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:22:29.196Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "?",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:22:35.717Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "aa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:22:36.997Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "aaa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:22:44.554Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "op",
+      "to": "bud",
+      "content": "aa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:22:45.770Z",
+      "read": true,
+      "location": "未知位置"
+    }
+  ],
+  "bud_yy": [
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "aa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:49.125Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "aa",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:57.980Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:58.464Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:58.736Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:58.924Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:59.120Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:59.335Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:24:59.808Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:00.011Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:00.227Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:00.777Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:01.026Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "a",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:01.243Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e3e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:02.575Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e3e3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:03.351Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e3e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:03.898Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:04.083Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:04.367Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:04.555Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:04.734Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "3e3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:04.910Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:05.094Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:05.284Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:05.501Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "3e3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:05.680Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:05.866Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "3e",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:06.017Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "from": "bud",
+      "to": "yy",
+      "content": "3",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:25:07.877Z",
+      "read": true,
+      "location": "未知位置"
+    }
+  ],
+  "bud_what": [
+    {
+      "from": "bud",
+      "to": "what",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:31:12.421Z",
+      "read": false,
+      "location": "未知位置"
+    }
+  ],
+  "bud_opposition": [
+    {
+      "from": "opposition",
+      "to": "bud",
+      "content": "hi",
+      "content_type": "text",
+      "timestamp": "2025-10-20T11:33:17.794Z",
+      "read": true,
+      "location": "未知位置"
+    },
+    {
+      "id": "c684284f-4224-4c1c-9dbb-8d8317a45816",
+      "from": "bud",
+      "to": "opposition",
+      "content": "screenshot-20250914-180305.png",
+      "content_type": "file",
+      "file_id": "305783ed-3fcc-456d-b89a-8013b20a2696",
+      "file_path": "305783ed-3fcc-456d-b89a-8013b20a2696_screenshot-20250914-180305.png",
+      "file_size": 350527,
+      "file_hash": "1aac6e4078ff510661f27c3fac212648",
+      "timestamp": "2025-10-20T21:21:36.189373",
+      "read": true
+    },
+    {
+      "id": "6e0d7dd9-d95f-4acd-b283-ddfde108217a",
+      "from": "opposition",
+      "to": "bud",
+      "content": "林锦荣 -IM产品经理（中级）.pdf",
+      "content_type": "file",
+      "file_id": "cc987e32-6ed1-4471-925c-828b46c5de80",
+      "file_path": "cc987e32-6ed1-4471-925c-828b46c5de80_林锦荣 -IM产品经理（中级）.pdf",
+      "file_size": 747039,
+      "file_hash": "a7db3de8cd72107c6daf373e101f9197",
+      "timestamp": "2025-10-20T21:21:53.139545",
+      "read": true
+    },
+    {
+      "id": "4483ced5-9ac3-4d63-8726-9a32b4a42d70",
+      "from": "opposition",
+      "to": "bud",
+      "content": "田康-Im产品经理.pdf",
+      "content_type": "file",
+      "file_id": "313911e2-c501-46ce-9e75-d2d6e5086b00",
+      "file_path": "313911e2-c501-46ce-9e75-d2d6e5086b00_田康-Im产品经理.pdf",
+      "file_size": 281286,
+      "file_hash": "cdb24e7691c6e0bc821f1d299ba75001",
+      "timestamp": "2025-10-20T21:26:11.292057",
+      "read": true
+    },
+    {
+      "id": "cb692299-3f76-4c98-84df-130cd0cbe704",
+      "from": "bud",
+      "to": "opposition",
+      "content": "转正申请表-DENG TENG.docx",
+      "content_type": "file",
+      "file_id": "68955faf-6df4-4a78-a383-9b7906647040",
+      "file_path": "68955faf-6df4-4a78-a383-9b7906647040_转正申请表-DENG TENG.docx",
+      "file_size": 114827,
+      "file_hash": "f52fe54341733b9c01af538cc42b501d",
+      "timestamp": "2025-10-20T21:30:50.573408",
+      "read": true
+    },
+    {
+      "id": "116800aa-6627-46b2-8892-6a1ca8d4f690",
+      "from": "opposition",
+      "to": "bud",
+      "content": "screenshot-20251008-121138.png",
+      "content_type": "file",
+      "file_id": "46ffc294-7467-4630-82c3-357a55ed1efc",
+      "file_path": "46ffc294-7467-4630-82c3-357a55ed1efc_screenshot-20251008-121138.png",
+      "file_size": 666775,
+      "file_hash": "50b4b9ce532fa618e5884c2da5c21b2d",
+      "timestamp": "2025-10-20T21:43:22.017437",
+      "read": true
+    },
+    {
+      "id": "1d2b11c0-b9c2-4391-8b1f-0b84a939f184",
+      "from": "opposition",
+      "to": "bud",
+      "content": "client_secret_1094083221459-thjh5e467so4872gun0fe9kt7ud3t4nc.apps.googleusercontent.com.json",
+      "content_type": "file",
+      "file_id": "f94bb1da-3912-4f8c-915a-742c7588ffff",
+      "file_path": "f94bb1da-3912-4f8c-915a-742c7588ffff_client_secret_1094083221459-thjh5e467so4872gun0fe9kt7ud3t4nc.apps.googleusercontent.com.json",
+      "file_size": 416,
+      "file_hash": "c8b482a121edff26f00153b70c82f7ef",
+      "timestamp": "2025-10-20T21:54:38.135353",
+      "read": true
+    },
+    {
+      "id": "b635a0de-4e54-48a2-bc06-1855508e130d",
+      "from": "bud",
+      "to": "opposition",
+      "content": "【已改格式】雷俊+产品经理+日本东京+yc01.pdf",
+      "content_type": "file",
+      "file_id": "bfd853fd-66f3-4c1f-8fc2-5670f2dec798",
+      "file_path": "bfd853fd-66f3-4c1f-8fc2-5670f2dec798_【已改格式】雷俊+产品经理+日本东京+yc01.pdf",
+      "file_size": 434801,
+      "file_hash": "d09a57c5ec3c9b4c2fdfbf211b57997a",
+      "timestamp": "2025-10-20T22:45:52.037663",
+      "read": true
+    },
+    {
+      "id": "252235c7-956d-4f81-8929-b1fd61dd0917",
+      "from": "bud",
+      "to": "opposition",
+      "content": "client_secret_1094083221459-tu857hsesk22c2bus5m5prbuqdbmqab9.apps.googleusercontent.com.json",
+      "content_type": "file",
+      "file_id": "25f0f8d1-8c08-4c97-b30a-eb160f54f814",
+      "file_path": "25f0f8d1-8c08-4c97-b30a-eb160f54f814_client_secret_1094083221459-tu857hsesk22c2bus5m5prbuqdbmqab9.apps.googleusercontent.com.json",
+      "file_size": 430,
+      "file_hash": "2fb1c51618d3a5b13a66388bbce497ff",
+      "timestamp": "2025-10-20T22:46:05.041745",
+      "read": true
+    },
+    {
+      "id": "b6d3ea78-c0be-478a-8f3c-f29d2f93a4ca",
+      "from": "bud",
+      "to": "opposition",
+      "content": "王桂情-产品经理.pdf",
+      "content_type": "file",
+      "file_id": "3555e36a-3bb5-49c2-ae17-b58ebebbc086",
+      "file_path": "3555e36a-3bb5-49c2-ae17-b58ebebbc086_王桂情-产品经理.pdf",
+      "file_size": 399149,
+      "file_hash": "bdfcb2cc1beff43525cb36974e74f06b",
+      "timestamp": "2025-10-21T10:33:27.414288",
+      "read": false
+    },
+    {
+      "id": "93477b7b-c572-4189-b547-65656bd8742b",
+      "from": "opposition",
+      "to": "bud",
+      "content": "screenshot-20250908-105644.png",
+      "content_type": "file",
+      "file_id": "b8fe5a0b-b167-4ab0-bbf1-09ca32fd1fb0",
+      "file_path": "b8fe5a0b-b167-4ab0-bbf1-09ca32fd1fb0_screenshot-20250908-105644.png",
+      "file_size": 639301,
+      "file_hash": "af56272567af4565fcee06d1b0b02b86",
+      "timestamp": "2025-10-21T10:33:56.642397",
+      "read": false
+    }
+  ]
+}

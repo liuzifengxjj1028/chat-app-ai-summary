@@ -1,0 +1,1843 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+实时聊天应用 - WebSocket 服务器
+"""
+
+import asyncio
+import json
+import os
+import io
+from datetime import datetime
+from aiohttp import web
+import aiohttp_cors
+import aiohttp
+
+# PDF处理库
+try:
+    import PyPDF2
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    print('⚠️  警告: PyPDF2未安装，PDF功能将不可用。运行: pip install PyPDF2')
+
+# 数据存储文件路径
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+MESSAGES_FILE = os.path.join(DATA_DIR, 'messages.json')
+GROUPS_FILE = os.path.join(DATA_DIR, 'groups.json')
+OFFLINE_MESSAGES_FILE = os.path.join(DATA_DIR, 'offline_messages.json')
+BOT_CONFIGS_FILE = os.path.join(DATA_DIR, 'bot_configs.json')
+FILES_DIR = os.path.join(DATA_DIR, 'files')  # 文件存储目录
+TEMP_FILES_DIR = os.path.join(DATA_DIR, 'temp_files')  # 临时文件片段存储
+
+# 确保数据目录存在
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(FILES_DIR, exist_ok=True)
+os.makedirs(TEMP_FILES_DIR, exist_ok=True)
+
+# 存储连接的用户
+connected_users = {}  # {username: websocket}
+user_ids = {}  # {username: userId} - 跟踪用户ID
+user_locations = {}  # {username: location_string} - 存储用户地理位置
+# 存储消息（持久化存储）
+messages_store = {}  # {chat_key: [messages]}
+# 存储群组
+groups_store = {}  # {group_id: {name, members, creator}}
+group_counter = 0  # 群组ID计数器
+# 存储离线消息
+offline_messages = {}  # {username: [messages]}
+# 机器人用户
+BOT_USERNAME = 'AI总结Bot'  # 聊天记录总结机器人
+# 存储用户的机器人配置
+bot_configs = {}  # {username: {prompt: str}}
+# 3D战场玩家
+battle_3d_players = {}  # {username: {position: {x, y, z}, websocket}}
+# 3D战场积分
+battle_3d_scores = {}  # {username: score}
+# 文件上传状态跟踪
+file_uploads = {}  # {file_id: {filename, total_size, chunks_received, uploader, recipient, timestamp}}
+# 文件分片大小 (256KB)
+CHUNK_SIZE = 256 * 1024
+
+# 加载持久化数据
+def load_data():
+    """从文件加载数据"""
+    global messages_store, groups_store, offline_messages, bot_configs, group_counter
+
+    # 加载消息
+    if os.path.exists(MESSAGES_FILE):
+        try:
+            with open(MESSAGES_FILE, 'r', encoding='utf-8') as f:
+                messages_store = json.load(f)
+            print(f'✅ 加载了 {len(messages_store)} 个聊天会话的历史消息')
+        except Exception as e:
+            print(f'⚠️  加载消息失败: {e}')
+            messages_store = {}
+
+    # 加载群组
+    if os.path.exists(GROUPS_FILE):
+        try:
+            with open(GROUPS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                groups_store = data.get('groups', {})
+                group_counter = data.get('counter', 0)
+            print(f'✅ 加载了 {len(groups_store)} 个群组')
+        except Exception as e:
+            print(f'⚠️  加载群组失败: {e}')
+            groups_store = {}
+            group_counter = 0
+
+    # 加载离线消息
+    if os.path.exists(OFFLINE_MESSAGES_FILE):
+        try:
+            with open(OFFLINE_MESSAGES_FILE, 'r', encoding='utf-8') as f:
+                offline_messages = json.load(f)
+            print(f'✅ 加载了 {sum(len(msgs) for msgs in offline_messages.values())} 条离线消息')
+        except Exception as e:
+            print(f'⚠️  加载离线消息失败: {e}')
+            offline_messages = {}
+
+    # 加载机器人配置
+    if os.path.exists(BOT_CONFIGS_FILE):
+        try:
+            with open(BOT_CONFIGS_FILE, 'r', encoding='utf-8') as f:
+                bot_configs = json.load(f)
+            print(f'✅ 加载了 {len(bot_configs)} 个机器人配置')
+        except Exception as e:
+            print(f'⚠️  加载机器人配置失败: {e}')
+            bot_configs = {}
+
+# 保存数据到文件
+def save_messages():
+    """保存消息到文件"""
+    try:
+        with open(MESSAGES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(messages_store, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f'❌ 保存消息失败: {e}')
+
+def save_groups():
+    """保存群组到文件"""
+    try:
+        with open(GROUPS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({
+                'groups': groups_store,
+                'counter': group_counter
+            }, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f'❌ 保存群组失败: {e}')
+
+def save_offline_messages():
+    """保存离线消息到文件"""
+    try:
+        with open(OFFLINE_MESSAGES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(offline_messages, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f'❌ 保存离线消息失败: {e}')
+
+def save_bot_configs():
+    """保存机器人配置到文件"""
+    try:
+        with open(BOT_CONFIGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(bot_configs, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f'❌ 保存机器人配置失败: {e}')
+
+
+def get_chat_key(user1, user2):
+    """生成聊天记录的唯一key"""
+    return '_'.join(sorted([user1, user2]))
+
+
+async def get_location_from_ip(ip):
+    """通过IP获取地理位置"""
+    try:
+        # 使用免费的ip-api.com服务（无需API key，但有限制：每分钟45请求）
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'http://ip-api.com/json/{ip}?lang=zh-CN&fields=country,regionName,city,status,message') as response:
+                data = await response.json()
+
+                if data.get('status') == 'success':
+                    country = data.get('country', '')
+                    region = data.get('regionName', '')
+                    city = data.get('city', '')
+
+                    # 组合位置信息
+                    location_parts = []
+                    if country:
+                        location_parts.append(country)
+                    if region and region != city:  # 避免重复
+                        location_parts.append(region)
+                    if city:
+                        location_parts.append(city)
+
+                    return '·'.join(location_parts) if location_parts else '未知位置'
+                else:
+                    return '未知位置'
+    except Exception as e:
+        print(f'获取地理位置失败: {e}')
+        return '未知位置'
+
+
+async def websocket_handler(request):
+    """WebSocket 连接处理"""
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    username = None
+
+    try:
+        async for msg in ws:
+            if msg.type == web.WSMsgType.TEXT:
+                try:
+                    data = json.loads(msg.data)
+                    await handle_message(ws, data, username, request)
+
+                    # 更新 username（注册后）
+                    if data.get('type') == 'register' and username is None:
+                        username = data.get('username')
+
+                except json.JSONDecodeError:
+                    await ws.send_json({
+                        'type': 'error',
+                        'message': '无效的消息格式'
+                    })
+
+            elif msg.type == web.WSMsgType.ERROR:
+                print(f'WebSocket 错误: {ws.exception()}')
+
+    finally:
+        # 用户断开连接
+        if username and username in connected_users:
+            del connected_users[username]
+            # 通知其他用户
+            await broadcast({
+                'type': 'user_offline',
+                'username': username
+            }, exclude=username)
+            print(f'用户离线: {username}')
+
+        # 清理3D战场玩家（通过WebSocket对象查找）
+        battle_username_to_remove = None
+        for battle_user, battle_data in battle_3d_players.items():
+            if battle_data['websocket'] == ws:
+                battle_username_to_remove = battle_user
+                break
+
+        if battle_username_to_remove:
+            del battle_3d_players[battle_username_to_remove]
+            # 清理积分
+            if battle_username_to_remove in battle_3d_scores:
+                del battle_3d_scores[battle_username_to_remove]
+            # 通知其他3D玩家
+            for player_name, player_data in list(battle_3d_players.items()):
+                try:
+                    await player_data['websocket'].send_json({
+                        'type': '3d_battle_player_left',
+                        'username': battle_username_to_remove
+                    })
+                except:
+                    pass
+            # 广播更新后的积分榜
+            for player_name, player_data in list(battle_3d_players.items()):
+                try:
+                    await player_data['websocket'].send_json({
+                        'type': '3d_battle_score_update',
+                        'scores': battle_3d_scores
+                    })
+                except:
+                    pass
+            print(f'3D战场: {battle_username_to_remove} 断开连接')
+
+    return ws
+
+
+async def handle_message(ws, data, current_username, request=None):
+    """处理接收到的消息"""
+    msg_type = data.get('type')
+
+    if msg_type == 'register':
+        await handle_register(ws, data, request)
+
+    # 3D战场消息（不需要注册就可以使用）
+    elif msg_type in ['3d_battle_join', '3d_battle_leave', '3d_battle_move', '3d_battle_attack', '3d_battle_chat']:
+        battle_username = data.get('username')
+        print(f'收到3D战场消息: {msg_type} from {battle_username}')
+        await handle_3d_battle_message(data, battle_username, ws)
+        return  # 提前返回，不需要检查current_username
+
+    elif msg_type == 'send_message':
+        await handle_send_message(data, current_username)
+
+    elif msg_type == 'mark_as_read':
+        await handle_mark_as_read(data, current_username)
+
+    elif msg_type == 'recall_message':
+        await handle_recall_message(data, current_username)
+
+    elif msg_type == 'create_group':
+        await handle_create_group(ws, data, current_username)
+
+    elif msg_type == 'send_group_message':
+        await handle_send_group_message(data, current_username)
+
+    elif msg_type == 'mark_group_message_read':
+        await handle_mark_group_message_read(data, current_username)
+
+    # 视频聊天信令（包括群组视频）
+    elif msg_type in ['video_invite', 'video_accept', 'video_reject', 'video_offer', 'video_answer', 'ice_candidate', 'video_end', 'group_video_invite', 'group_video_accept', 'group_video_reject', 'group_video_end']:
+        await handle_video_signal(data, current_username)
+
+    # 文件传输相关
+    elif msg_type == 'file_upload_init':
+        await handle_file_upload_init(ws, data, current_username)
+
+    elif msg_type == 'file_upload_chunk':
+        await handle_file_upload_chunk(ws, data, current_username)
+
+    elif msg_type == 'file_upload_complete':
+        await handle_file_upload_complete(ws, data, current_username)
+
+    elif msg_type == 'file_download_request':
+        await handle_file_download_request(ws, data, current_username)
+
+
+async def handle_register(ws, data, request=None):
+    """处理用户注册"""
+    username = data.get('username', '').strip()
+    user_id = data.get('userId', '')
+
+    if not username:
+        await ws.send_json({
+            'type': 'register_error',
+            'message': '昵称不能为空'
+        })
+        return
+
+    if len(username) > 20:
+        await ws.send_json({
+            'type': 'register_error',
+            'message': '昵称不能超过20个字符'
+        })
+        return
+
+    # 检查是否是同一用户重新登录（通过userId识别）
+    is_returning_user = user_id and username in user_ids and user_ids[username] == user_id
+
+    if username in connected_users and not is_returning_user:
+        await ws.send_json({
+            'type': 'register_error',
+            'message': '昵称已被使用，请换一个'
+        })
+        return
+
+    # 获取用户IP并解析地理位置
+    if request:
+        # 获取真实IP（考虑代理和负载均衡）
+        ip = request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or \
+             request.headers.get('X-Real-IP', '') or \
+             request.remote
+
+        # 解析地理位置
+        location = await get_location_from_ip(ip)
+        user_locations[username] = location
+        print(f'用户 {username} 的位置: {location} (IP: {ip})')
+    else:
+        user_locations[username] = '未知位置'
+
+    # 注册成功
+    connected_users[username] = ws
+    if user_id:
+        user_ids[username] = user_id
+
+    # 发送注册成功消息（包含机器人用户）
+    all_users = list(connected_users.keys())
+    if BOT_USERNAME not in all_users:
+        all_users.append(BOT_USERNAME)
+
+    await ws.send_json({
+        'type': 'register_success',
+        'username': username,
+        'users': all_users,
+        'bots': [BOT_USERNAME]  # 标记哪些是机器人
+    })
+
+    # 推送历史消息（所有与该用户相关的聊天记录）
+    history_count = 0
+    for chat_key, msgs in messages_store.items():
+        # 检查是否是与该用户相关的聊天
+        if username in chat_key.split('_'):
+            for msg in msgs:
+                await ws.send_json({
+                    'type': 'history_message',
+                    **msg
+                })
+                history_count += 1
+
+    if history_count > 0:
+        print(f'推送 {history_count} 条历史消息给 {username}')
+
+    # 推送群组列表和群消息历史
+    user_groups = []
+    for group_id, group_info in groups_store.items():
+        if username in group_info['members']:
+            user_groups.append({
+                'group_id': group_id,
+                'name': group_info['name'],
+                'members': group_info['members'],
+                'creator': group_info['creator']
+            })
+
+    # 先推送群组列表，让客户端初始化群组
+    if user_groups:
+        await ws.send_json({
+            'type': 'group_list',
+            'groups': user_groups
+        })
+        print(f'推送 {len(user_groups)} 个群组给 {username}')
+
+    # 再推送群组历史消息
+    for group_id, group_info in groups_store.items():
+        if username in group_info['members']:
+            if group_id in messages_store:
+                group_msg_count = len(messages_store[group_id])
+                for msg in messages_store[group_id]:
+                    await ws.send_json({
+                        'type': 'history_group_message',
+                        **msg
+                    })
+                if group_msg_count > 0:
+                    print(f'推送 {group_msg_count} 条群组历史消息 (群组ID: {group_id}) 给 {username}')
+
+    # 推送离线消息（如果有）
+    if username in offline_messages and offline_messages[username]:
+        print(f'推送 {len(offline_messages[username])} 条离线消息给 {username}')
+        for msg in offline_messages[username]:
+            await ws.send_json({
+                'type': 'new_message',
+                **msg
+            })
+        # 清空已推送的离线消息
+        offline_messages[username] = []
+        save_offline_messages()  # 保存更新
+
+    # 通知其他用户有新用户上线
+    await broadcast({
+        'type': 'user_online',
+        'username': username
+    }, exclude=username)
+
+    print(f'用户注册: {username}')
+    print(f'当前在线用户: {list(connected_users.keys())}')
+
+
+async def call_llm_api(prompt, user_content):
+    """调用LLM API进行总结 - 支持Claude API"""
+    print(f'[DEBUG] call_llm_api 开始执行...')
+
+    # 优先从环境变量读取
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+
+    # Railway环境变量备选方案：尝试从配置文件读取
+    if not api_key:
+        try:
+            config_file = os.path.join(os.path.dirname(__file__), '.api_config')
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    api_key = f.read().strip()
+        except:
+            pass
+
+    print(f'[DEBUG] API密钥状态: {"已配置" if api_key else "未配置"} (长度: {len(api_key) if api_key else 0})')
+
+    if not api_key:
+        print('[DEBUG] 错误：未配置API密钥')
+        return "错误：未配置API密钥。请设置ANTHROPIC_API_KEY环境变量。"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                'https://api.anthropic.com/v1/messages',
+                headers={
+                    'x-api-key': api_key,
+                    'anthropic-version': '2023-06-01',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': os.environ.get('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022'),
+                    'max_tokens': 4096,
+                    'system': prompt,
+                    'messages': [
+                        {'role': 'user', 'content': user_content}
+                    ],
+                    'temperature': 0.7
+                },
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return result['content'][0]['text']
+                else:
+                    error_text = await response.text()
+                    return f"API调用失败 ({response.status}): {error_text}"
+    except asyncio.TimeoutError:
+        return "错误：API调用超时"
+    except Exception as e:
+        return f"错误：{str(e)}"
+
+
+async def handle_bot_message(from_user, content, content_type):
+    """处理发送给机器人的消息"""
+    print(f'[DEBUG] handle_bot_message 被调用: from_user={from_user}, content_type={content_type}, content长度={len(content)}')
+
+    # 获取用户的机器人配置
+    user_config = bot_configs.get(from_user, {})
+    user_prompt = user_config.get('prompt', '请总结以下聊天记录的主要内容和关键信息。')
+    print(f'[DEBUG] 用户prompt: {user_prompt[:50]}...')
+
+    # 检查是否是配置命令
+    if content.startswith('/setprompt '):
+        new_prompt = content[11:].strip()
+        if new_prompt:
+            bot_configs[from_user] = {'prompt': new_prompt}
+            return f"✅ Prompt已更新为：\n\n{new_prompt}\n\n现在发送聊天记录或PDF给我，我会使用这个prompt进行总结。"
+        else:
+            return "❌ Prompt不能为空"
+
+    # 检查是否是查看配置命令
+    if content == '/getprompt':
+        return f"当前Prompt：\n\n{user_prompt}\n\n使用 /setprompt <新prompt> 来修改"
+
+    # 检查是否是帮助命令
+    if content == '/help' or content == '帮助':
+        return """📖 AI总结Bot 使用说明：
+
+1. **设置总结Prompt**：
+   点击右上角"⚙️ 设置Prompt"按钮，或发送命令：
+   /setprompt <你的prompt>
+
+2. **查看当前Prompt**：
+   /getprompt
+
+3. **总结聊天记录**：
+   直接粘贴聊天记录文本发送给我
+
+💡 **提示**：使用UI界面设置Prompt更方便！
+
+🤖 **技术信息**：
+- API: Anthropic Claude 3.5 Sonnet
+- 环境变量: ANTHROPIC_API_KEY
+
+示例聊天记录：
+张三: 我们需要在下周五前完成项目
+李四: 好的，我负责前端部分
+"""
+
+    # 处理文本内容（聊天记录）
+    if content_type == 'text':
+        print(f'[DEBUG] 准备调用 call_llm_api...')
+        # 调用LLM API进行总结
+        summary = await call_llm_api(user_prompt, content)
+        print(f'[DEBUG] call_llm_api 返回结果长度: {len(summary)}')
+        return f"📊 总结结果：\n\n{summary}"
+
+    # 处理PDF文件
+    elif content_type == 'pdf':
+        try:
+            import base64
+
+            # PDF内容通常是base64编码的
+            if isinstance(content, str):
+                # 如果是base64字符串，需要解码
+                if content.startswith('data:application/pdf;base64,'):
+                    # 移除data URL前缀
+                    content = content.split(',', 1)[1]
+                pdf_data = base64.b64decode(content)
+            else:
+                # 如果已经是字节数据
+                pdf_data = content
+
+            # 验证PDF文件大小（最大10MB）
+            if len(pdf_data) > 10 * 1024 * 1024:
+                return "❌ PDF文件大小不能超过10MB"
+
+            print(f'[DEBUG] 准备解析PDF文件: {len(pdf_data)} 字节')
+
+            # 提取PDF文本
+            extracted_text = await extract_text_from_pdf(pdf_data)
+
+            if not extracted_text.strip():
+                return "❌ 无法从PDF中提取文本内容，请确保PDF包含可提取的文本。"
+
+            print(f'[DEBUG] PDF文本提取成功: {len(extracted_text)} 字符')
+            print(f'[DEBUG] 准备调用 call_llm_api 总结PDF内容...')
+
+            # 调用LLM API进行总结
+            summary = await call_llm_api(user_prompt, extracted_text)
+            print(f'[DEBUG] call_llm_api 返回结果长度: {len(summary)}')
+
+            return f"📊 PDF总结结果：\n\n{summary}"
+
+        except Exception as e:
+            print(f'❌ PDF处理失败: {str(e)}')
+            return f"❌ PDF处理失败：{str(e)}"
+
+    return "❌ 不支持的消息类型"
+
+
+async def handle_send_message(data, from_user):
+    """处理发送消息"""
+    to_user = data.get('to')
+    content = data.get('content')
+    content_type = data.get('content_type', 'text')
+    timestamp = data.get('timestamp', int(datetime.now().timestamp() * 1000))
+    quoted_message = data.get('quoted_message')
+    duration = data.get('duration')  # 语音消息时长
+
+    if not to_user or not content or not from_user:
+        return
+
+    # 保存消息
+    chat_key = get_chat_key(from_user, to_user)
+    if chat_key not in messages_store:
+        messages_store[chat_key] = []
+
+    message = {
+        'from': from_user,
+        'to': to_user,
+        'content': content,
+        'content_type': content_type,
+        'timestamp': timestamp,
+        'read': False,
+        'location': user_locations.get(from_user, '未知位置')  # 添加发送者位置
+    }
+
+    # 如果有引用消息，添加到消息中
+    if quoted_message:
+        message['quoted_message'] = quoted_message
+
+    # 如果是语音消息，添加时长
+    if duration is not None:
+        message['duration'] = duration
+
+    messages_store[chat_key].append(message)
+    save_messages()  # 保存消息
+
+    # 如果是发送给机器人的消息，处理并回复
+    if to_user == BOT_USERNAME:
+        print(f'机器人消息: {from_user} -> {BOT_USERNAME} ({content_type})')
+
+        # 处理机器人消息
+        bot_response = await handle_bot_message(from_user, content, content_type)
+
+        # 发送机器人回复
+        bot_message = {
+            'from': BOT_USERNAME,
+            'to': from_user,
+            'content': bot_response,
+            'content_type': 'text',
+            'timestamp': int(datetime.now().timestamp() * 1000),
+            'read': False
+        }
+
+        messages_store[chat_key].append(bot_message)
+        save_messages()  # 保存消息
+
+        if from_user in connected_users:
+            await connected_users[from_user].send_json({
+                'type': 'new_message',
+                **bot_message
+            })
+        else:
+            if from_user not in offline_messages:
+                offline_messages[from_user] = []
+            offline_messages[from_user].append(bot_message)
+
+    # 转发消息给接收者（如果在线）或存储为离线消息
+    elif to_user in connected_users:
+        await connected_users[to_user].send_json({
+            'type': 'new_message',
+            **message
+        })
+        print(f'消息: {from_user} -> {to_user} ({content_type}) [已送达]')
+    else:
+        # 接收者离线，存储为离线消息
+        if to_user not in offline_messages:
+            offline_messages[to_user] = []
+        offline_messages[to_user].append(message)
+        print(f'消息: {from_user} -> {to_user} ({content_type}) [离线存储]')
+
+
+async def handle_mark_as_read(data, current_user):
+    """处理标记消息为已读"""
+    from_user = data.get('from')
+
+    if not from_user:
+        return
+
+    # 更新消息状态
+    chat_key = get_chat_key(current_user, from_user)
+    if chat_key in messages_store:
+        for msg in messages_store[chat_key]:
+            if msg['to'] == current_user and msg['from'] == from_user:
+                msg['read'] = True
+
+    # 通知发送者消息已读
+    if from_user in connected_users:
+        await connected_users[from_user].send_json({
+            'type': 'message_read',
+            'user': current_user
+        })
+
+    print(f'消息已读: {from_user} -> {current_user}')
+
+
+async def handle_recall_message(data, current_user):
+    """处理撤回消息"""
+    timestamp = data.get('timestamp')
+    group_id = data.get('group_id')
+    to_user = data.get('to')
+
+    if not timestamp:
+        return
+
+    if group_id:
+        # 群聊消息撤回
+        if group_id not in groups_store:
+            return
+
+        group = groups_store[group_id]
+
+        # 检查是否是群成员
+        if current_user not in group['members']:
+            return
+
+        # 从消息存储中删除原消息，但为其他用户保留撤回痕迹
+        if group_id in messages_store:
+            # 找到被撤回的消息
+            original_msg = None
+            for msg in messages_store[group_id]:
+                if msg.get('timestamp') == timestamp and msg.get('from') == current_user:
+                    original_msg = msg
+                    break
+
+            # 删除原消息
+            messages_store[group_id] = [
+                msg for msg in messages_store[group_id]
+                if not (msg.get('timestamp') == timestamp and msg.get('from') == current_user)
+            ]
+
+            # 添加撤回通知消息到历史记录
+            if original_msg:
+                recall_notice = {
+                    'type': 'recall_notice',
+                    'from': current_user,
+                    'group_id': group_id,
+                    'timestamp': timestamp,
+                    'content': f'{current_user} 撤回了一条消息',
+                    'content_type': 'recall_notice',
+                    'original_timestamp': timestamp
+                }
+                messages_store[group_id].append(recall_notice)
+                save_messages()
+
+        # 通知所有群成员（除了自己）
+        for member in group['members']:
+            if member != current_user and member in connected_users:
+                await connected_users[member].send_json({
+                    'type': 'message_recalled',
+                    'timestamp': timestamp,
+                    'group_id': group_id,
+                    'from': current_user
+                })
+
+        print(f'群聊消息撤回: {current_user} 在群 {group_id} 中撤回消息 {timestamp}')
+
+    else:
+        # 私聊消息撤回
+        if not to_user:
+            return
+
+        chat_key = get_chat_key(current_user, to_user)
+
+        # 从消息存储中删除原消息，但为对方保留撤回痕迹
+        if chat_key in messages_store:
+            # 找到被撤回的消息
+            original_msg = None
+            for msg in messages_store[chat_key]:
+                if msg.get('timestamp') == timestamp and msg.get('from') == current_user:
+                    original_msg = msg
+                    break
+
+            # 删除原消息
+            messages_store[chat_key] = [
+                msg for msg in messages_store[chat_key]
+                if not (msg.get('timestamp') == timestamp and msg.get('from') == current_user)
+            ]
+
+            # 添加撤回通知消息到历史记录
+            if original_msg:
+                recall_notice = {
+                    'type': 'recall_notice',
+                    'from': current_user,
+                    'to': to_user,
+                    'timestamp': timestamp,
+                    'content': f'{current_user} 撤回了一条消息',
+                    'content_type': 'recall_notice',
+                    'original_timestamp': timestamp
+                }
+                messages_store[chat_key].append(recall_notice)
+                save_messages()
+
+        # 通知对方
+        if to_user in connected_users:
+            await connected_users[to_user].send_json({
+                'type': 'message_recalled',
+                'timestamp': timestamp,
+                'from': current_user
+            })
+
+        print(f'私聊消息撤回: {current_user} 撤回发给 {to_user} 的消息 {timestamp}')
+
+
+async def broadcast(message, exclude=None):
+    """广播消息给所有用户（除了排除的用户）"""
+    for username, ws in connected_users.items():
+        if username != exclude:
+            try:
+                await ws.send_json(message)
+            except Exception as e:
+                print(f'发送消息给 {username} 失败: {e}')
+
+
+async def handle_create_group(ws, data, creator):
+    """处理创建群组"""
+    global group_counter
+
+    group_name = data.get('name', '').strip()
+    members = data.get('members', [])
+
+    if not group_name:
+        await ws.send_json({
+            'type': 'error',
+            'message': '群名称不能为空'
+        })
+        return
+
+    if len(members) < 2:
+        await ws.send_json({
+            'type': 'error',
+            'message': '至少需要2个成员'
+        })
+        return
+
+    # 生成群组ID
+    group_counter += 1
+    group_id = f'group_{group_counter}'
+
+    # 添加创建者到成员列表
+    all_members = list(set(members + [creator]))
+
+    # 存储群组信息
+    groups_store[group_id] = {
+        'id': group_id,
+        'name': group_name,
+        'members': all_members,
+        'creator': creator
+    }
+    save_groups()  # 保存群组
+
+    # 通知所有成员（包括创建者）
+    for member in all_members:
+        if member in connected_users:
+            await connected_users[member].send_json({
+                'type': 'group_created',
+                'group_id': group_id,
+                'name': group_name,
+                'members': all_members,
+                'creator': creator
+            })
+
+    print(f'群组创建: {group_name} (ID: {group_id}), 成员: {all_members}')
+
+
+async def handle_send_group_message(data, from_user):
+    """处理发送群组消息"""
+    group_id = data.get('group_id')
+    content = data.get('content')
+    content_type = data.get('content_type', 'text')
+    timestamp = data.get('timestamp', int(datetime.now().timestamp() * 1000))
+    quoted_message = data.get('quoted_message')
+    duration = data.get('duration')  # 语音消息时长
+
+    if not group_id or not content:
+        return
+
+    # 检查群组是否存在
+    if group_id not in groups_store:
+        return
+
+    group = groups_store[group_id]
+
+    # 检查发送者是否是群成员
+    if from_user not in group['members']:
+        return
+
+    # 保存消息
+    if group_id not in messages_store:
+        messages_store[group_id] = []
+
+    # 初始化已读列表：发送者自动标记为已读
+    read_by = [from_user]
+    unread_members = [m for m in group['members'] if m != from_user]
+
+    message = {
+        'from': from_user,
+        'group_id': group_id,
+        'content': content,
+        'content_type': content_type,
+        'timestamp': timestamp,
+        'read': False,
+        'read_by': read_by,  # 已读成员列表
+        'unread_members': unread_members,  # 未读成员列表
+        'location': user_locations.get(from_user, '未知位置')  # 添加发送者位置
+    }
+
+    # 如果有引用消息，添加到消息中
+    if quoted_message:
+        message['quoted_message'] = quoted_message
+
+    # 如果是语音消息，添加时长
+    if duration is not None:
+        message['duration'] = duration
+
+    messages_store[group_id].append(message)
+    save_messages()  # 保存消息
+
+    # 广播消息给所有群成员（除了发送者）
+    for member in group['members']:
+        if member != from_user and member in connected_users:
+            await connected_users[member].send_json({
+                'type': 'new_group_message',
+                **message
+            })
+
+    print(f'群组消息: {from_user} -> {group["name"]} ({content_type})')
+
+
+async def handle_mark_group_message_read(data, current_user):
+    """处理群消息已读标记"""
+    group_id = data.get('group_id')
+    timestamp = data.get('timestamp')
+
+    if not group_id or not timestamp or not current_user:
+        return
+
+    # 检查群组是否存在
+    if group_id not in groups_store or group_id not in messages_store:
+        return
+
+    # 查找消息并更新已读状态
+    for msg in messages_store[group_id]:
+        if msg.get('timestamp') == timestamp:
+            # 如果是历史消息，初始化阅读状态字段
+            if 'read_by' not in msg or 'unread_members' not in msg:
+                group = groups_store[group_id]
+                msg_sender = msg.get('from')
+                # 初始化已读列表（发送者已读）
+                msg['read_by'] = [msg_sender] if msg_sender else []
+                # 初始化未读列表（其他所有成员）
+                msg['unread_members'] = [m for m in group['members'] if m != msg_sender]
+
+            # 将当前用户从未读列表移除，添加到已读列表
+            if current_user in msg.get('unread_members', []):
+                msg['unread_members'].remove(current_user)
+            if current_user not in msg.get('read_by', []):
+                msg['read_by'].append(current_user)
+
+            # 广播更新后的阅读状态给群内所有在线成员
+            group = groups_store[group_id]
+            for member in group['members']:
+                if member in connected_users:
+                    await connected_users[member].send_json({
+                        'type': 'group_message_read_update',
+                        'group_id': group_id,
+                        'timestamp': timestamp,
+                        'read_by': msg['read_by'],
+                        'unread_members': msg['unread_members'],
+                        'reader': current_user
+                    })
+
+            print(f'群消息已读: {current_user} 已读群 {group_id} 的消息 {timestamp}')
+            break
+
+
+async def handle_video_signal(data, current_user):
+    """处理视频聊天信令"""
+    msg_type = data.get('type')
+    group_id = data.get('group_id')
+
+    # 群组视频信令
+    if msg_type in ['group_video_invite', 'group_video_accept', 'group_video_end']:
+        if not group_id or group_id not in groups_store:
+            print(f'群组视频信令失败: 群组 {group_id} 不存在')
+            return
+
+        group = groups_store[group_id]
+
+        # 初始化群组视频成员列表
+        if 'video_members' not in group:
+            group['video_members'] = set()
+
+        # 处理invite信号 - 发起人加入
+        if msg_type == 'group_video_invite':
+            group['video_members'].add(current_user)
+            print(f'群组视频invite: {current_user} 发起群 {group_id} 视频')
+
+        # 处理accept信号 - 需要返回当前成员列表
+        if msg_type == 'group_video_accept':
+            # 获取当前已在视频中的成员列表
+            current_members = list(group['video_members'])
+
+            # 将新成员加入列表
+            group['video_members'].add(current_user)
+
+            # 给新加入的成员发送当前成员列表
+            if current_user in connected_users:
+                await connected_users[current_user].send_json({
+                    'type': 'group_video_members',
+                    'group_id': group_id,
+                    'members': current_members
+                })
+
+            # 广播给群内其他在线成员
+            for member in group['members']:
+                if member != current_user and member in connected_users:
+                    await connected_users[member].send_json(data)
+
+            print(f'群组视频accept: {current_user} 加入群 {group_id}, 当前成员: {list(group["video_members"])}')
+            return
+
+        # 处理end信号 - 移除成员
+        if msg_type == 'group_video_end':
+            if current_user in group['video_members']:
+                group['video_members'].remove(current_user)
+
+            # 如果没人了，清空列表
+            if len(group['video_members']) == 0:
+                group['video_members'] = set()
+
+        # 广播给群内所有在线成员（除了发送者）
+        for member in group['members']:
+            if member != current_user and member in connected_users:
+                await connected_users[member].send_json(data)
+
+        print(f'群组视频信令: {msg_type} from {current_user} to group {group_id}')
+        return
+
+    # 一对一视频信令或带group_id的点对点信令
+    to_user = data.get('to')
+    from_user = data.get('from')
+
+    if not to_user:
+        print(f'视频信令失败: 缺少目标用户')
+        return
+
+    # 确保目标用户在线
+    if to_user not in connected_users:
+        print(f'视频信令失败: {to_user} 不在线')
+        return
+
+    # 转发信令给目标用户
+    await connected_users[to_user].send_json(data)
+    print(f'视频信令: {msg_type} from {from_user} to {to_user}')
+
+
+async def handle_3d_battle_message(data, current_user, ws):
+    """处理3D战场消息"""
+    msg_type = data.get('type')
+    username = data.get('username', current_user)
+
+    if msg_type == '3d_battle_join':
+        # 玩家加入战场
+        position = data.get('position', {'x': 0, 'y': 0, 'z': 0})
+        battle_3d_players[username] = {
+            'position': position,
+            'websocket': ws
+        }
+
+        # 初始化积分
+        if username not in battle_3d_scores:
+            battle_3d_scores[username] = 0
+
+        # 通知所有其他玩家
+        for player_name, player_data in list(battle_3d_players.items()):
+            if player_name != username:
+                await player_data['websocket'].send_json({
+                    'type': '3d_battle_player_joined',
+                    'username': username,
+                    'position': position
+                })
+
+        # 发送当前玩家列表给新加入的玩家
+        players_list = [
+            {'username': name, 'position': pdata['position']}
+            for name, pdata in battle_3d_players.items()
+            if name != username
+        ]
+        await ws.send_json({
+            'type': '3d_battle_players_list',
+            'players': players_list
+        })
+
+        # 发送积分榜给新玩家
+        await ws.send_json({
+            'type': '3d_battle_score_update',
+            'scores': battle_3d_scores
+        })
+
+        print(f'3D战场: {username} 加入，当前玩家数: {len(battle_3d_players)}')
+
+    elif msg_type == '3d_battle_leave':
+        # 玩家离开战场
+        if username in battle_3d_players:
+            del battle_3d_players[username]
+
+            # 通知所有其他玩家
+            for player_name, player_data in list(battle_3d_players.items()):
+                await player_data['websocket'].send_json({
+                    'type': '3d_battle_player_left',
+                    'username': username
+                })
+
+            print(f'3D战场: {username} 离开，当前玩家数: {len(battle_3d_players)}')
+
+    elif msg_type == '3d_battle_move':
+        # 玩家移动
+        position = data.get('position', {'x': 0, 'y': 0, 'z': 0})
+
+        if username in battle_3d_players:
+            battle_3d_players[username]['position'] = position
+
+            # 广播给所有其他玩家
+            for player_name, player_data in list(battle_3d_players.items()):
+                if player_name != username:
+                    await player_data['websocket'].send_json({
+                        'type': '3d_battle_move',
+                        'username': username,
+                        'position': position
+                    })
+
+    elif msg_type == '3d_battle_attack':
+        # 玩家攻击
+        position = data.get('position', {'x': 0, 'y': 0, 'z': 0})
+        hit_players = data.get('hitPlayers', [])
+
+        # 广播攻击动作给所有其他玩家
+        for player_name, player_data in list(battle_3d_players.items()):
+            if player_name != username:
+                await player_data['websocket'].send_json({
+                    'type': '3d_battle_attack',
+                    'username': username,
+                    'position': position,
+                    'hitPlayers': hit_players
+                })
+
+        # 单独通知每个被击中的玩家并更新积分
+        for hit_username in hit_players:
+            if hit_username in battle_3d_players:
+                # 更新积分：攻击者+1，被击中者-1
+                if username in battle_3d_scores:
+                    battle_3d_scores[username] += 1
+                if hit_username in battle_3d_scores:
+                    battle_3d_scores[hit_username] -= 1
+
+                # 通知所有玩家这个人被击中了（用于显示其他人的被击中动画）
+                for player_name, player_data in list(battle_3d_players.items()):
+                    await player_data['websocket'].send_json({
+                        'type': '3d_battle_hit',
+                        'attacker': username,
+                        'hitUsername': hit_username
+                    })
+
+        # 如果有人被击中，广播积分更新
+        if hit_players:
+            for player_name, player_data in list(battle_3d_players.items()):
+                await player_data['websocket'].send_json({
+                    'type': '3d_battle_score_update',
+                    'scores': battle_3d_scores
+                })
+
+    elif msg_type == '3d_battle_chat':
+        # 聊天消息
+        message = data.get('message', '')
+
+        # 广播给所有玩家（包括自己）
+        for player_name, player_data in list(battle_3d_players.items()):
+            await player_data['websocket'].send_json({
+                'type': '3d_battle_chat',
+                'username': username,
+                'message': message
+            })
+
+
+async def index_handler(request):
+    """主页处理"""
+    return web.FileResponse('./index.html')
+
+
+async def static_handler(request):
+    """静态文件处理"""
+    filename = request.match_info['filename']
+    return web.FileResponse(f'./{filename}')
+
+
+async def extract_text_from_pdf(pdf_data):
+    """从PDF字节数据中提取文本"""
+    if not PDF_SUPPORT:
+        raise Exception('PDF处理库未安装，请运行: pip install PyPDF2')
+
+    try:
+        pdf_file = io.BytesIO(pdf_data)
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+        text_content = []
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            text = page.extract_text()
+            if text.strip():
+                text_content.append(f"[第{page_num + 1}页]\n{text}")
+
+        result = '\n\n'.join(text_content)
+        print(f'✅ PDF解析完成: {len(pdf_reader.pages)}页, {len(result)}字符')
+        return result
+    except Exception as e:
+        print(f'❌ PDF解析失败: {str(e)}')
+        raise Exception(f'PDF解析失败: {str(e)}')
+
+
+async def handle_file_upload_init(ws, data, current_username):
+    """处理文件上传初始化"""
+    import base64
+    import uuid
+    import hashlib
+
+    file_id = str(uuid.uuid4())
+    filename = data.get('filename')
+    file_size = data.get('fileSize')
+    recipient = data.get('to')
+    file_hash = data.get('fileHash', '')  # 文件哈希用于验证
+
+    if not filename or not file_size or not recipient:
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': '缺少必要参数'
+        })
+        return
+
+    # 创建文件上传记录
+    file_uploads[file_id] = {
+        'filename': filename,
+        'file_size': file_size,
+        'uploader': current_username,
+        'recipient': recipient,
+        'chunks_received': set(),
+        'total_chunks': (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE,
+        'timestamp': datetime.now().isoformat(),
+        'file_hash': file_hash
+    }
+
+    # 创建临时文件目录
+    temp_dir = os.path.join(TEMP_FILES_DIR, file_id)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    print(f'📁 文件上传初始化: {filename} ({file_size} bytes) from {current_username} to {recipient}')
+
+    # 响应客户端
+    await ws.send_json({
+        'type': 'file_upload_ready',
+        'fileId': file_id,
+        'chunkSize': CHUNK_SIZE,
+        'totalChunks': file_uploads[file_id]['total_chunks']
+    })
+
+
+async def handle_file_upload_chunk(ws, data, current_username):
+    """处理文件分片上传"""
+    import base64
+
+    file_id = data.get('fileId')
+    chunk_index = data.get('chunkIndex')
+    chunk_data = data.get('chunkData')  # Base64编码的数据
+
+    if file_id not in file_uploads:
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': '无效的文件ID'
+        })
+        return
+
+    upload_info = file_uploads[file_id]
+
+    # 验证上传者
+    if upload_info['uploader'] != current_username:
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': '无权上传此文件'
+        })
+        return
+
+    try:
+        # 解码并保存分片
+        chunk_bytes = base64.b64decode(chunk_data)
+        temp_dir = os.path.join(TEMP_FILES_DIR, file_id)
+        chunk_file = os.path.join(temp_dir, f'chunk_{chunk_index}')
+
+        with open(chunk_file, 'wb') as f:
+            f.write(chunk_bytes)
+
+        # 记录已接收的分片
+        upload_info['chunks_received'].add(chunk_index)
+
+        progress = len(upload_info['chunks_received']) / upload_info['total_chunks'] * 100
+
+        print(f'📦 接收分片 {chunk_index}/{upload_info["total_chunks"]} ({progress:.1f}%)')
+
+        # 响应客户端
+        await ws.send_json({
+            'type': 'file_upload_progress',
+            'fileId': file_id,
+            'chunkIndex': chunk_index,
+            'progress': progress,
+            'chunksReceived': len(upload_info['chunks_received']),
+            'totalChunks': upload_info['total_chunks']
+        })
+
+    except Exception as e:
+        print(f'❌ 分片接收失败: {str(e)}')
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': f'分片接收失败: {str(e)}'
+        })
+
+
+async def handle_file_upload_complete(ws, data, current_username):
+    """处理文件上传完成"""
+    import base64
+    import hashlib
+    import uuid
+
+    file_id = data.get('fileId')
+
+    if file_id not in file_uploads:
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': '无效的文件ID'
+        })
+        return
+
+    upload_info = file_uploads[file_id]
+
+    # 验证上传者
+    if upload_info['uploader'] != current_username:
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': '无权操作此文件'
+        })
+        return
+
+    # 检查是否所有分片都已接收
+    if len(upload_info['chunks_received']) != upload_info['total_chunks']:
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': f'分片不完整: {len(upload_info["chunks_received"])}/{upload_info["total_chunks"]}'
+        })
+        return
+
+    try:
+        # 合并文件
+        temp_dir = os.path.join(TEMP_FILES_DIR, file_id)
+        final_filename = f"{file_id}_{upload_info['filename']}"
+        final_path = os.path.join(FILES_DIR, final_filename)
+
+        with open(final_path, 'wb') as outfile:
+            for i in range(upload_info['total_chunks']):
+                chunk_file = os.path.join(temp_dir, f'chunk_{i}')
+                with open(chunk_file, 'rb') as infile:
+                    outfile.write(infile.read())
+
+        # 计算文件哈希验证
+        with open(final_path, 'rb') as f:
+            file_hash = hashlib.md5(f.read()).hexdigest()
+
+        # 清理临时文件
+        import shutil
+        shutil.rmtree(temp_dir)
+
+        file_size = os.path.getsize(final_path)
+
+        print(f'✅ 文件上传完成: {upload_info["filename"]} ({file_size} bytes)')
+
+        # 保存消息记录
+        message_id = str(uuid.uuid4())
+        message = {
+            'id': message_id,
+            'from': current_username,
+            'to': upload_info['recipient'],
+            'content': upload_info['filename'],
+            'content_type': 'file',
+            'file_id': file_id,
+            'file_path': final_filename,
+            'file_size': file_size,
+            'file_hash': file_hash,
+            'timestamp': datetime.now().isoformat(),
+            'read': False
+        }
+
+        # 存储消息
+        chat_key = get_chat_key(current_username, upload_info['recipient'])
+        if chat_key not in messages_store:
+            messages_store[chat_key] = []
+        messages_store[chat_key].append(message)
+        save_messages()
+
+        # 响应上传者
+        await ws.send_json({
+            'type': 'file_upload_success',
+            'fileId': file_id,
+            'messageId': message_id,
+            'filename': upload_info['filename'],
+            'fileSize': file_size,
+            'fileHash': file_hash
+        })
+
+        # 通知接收者
+        recipient = upload_info['recipient']
+        if recipient in connected_users:
+            await connected_users[recipient].send_json({
+                'type': 'new_message',
+                'message_id': message_id,
+                'from': current_username,
+                'to': recipient,
+                'content': upload_info['filename'],
+                'content_type': 'file',
+                'file_id': file_id,
+                'file_size': file_size,
+                'timestamp': message['timestamp']
+            })
+        else:
+            # 存储离线消息
+            if recipient not in offline_messages:
+                offline_messages[recipient] = []
+            offline_messages[recipient].append(message)
+            save_offline_messages()
+
+        # 清理上传记录
+        del file_uploads[file_id]
+
+    except Exception as e:
+        print(f'❌ 文件合并失败: {str(e)}')
+        await ws.send_json({
+            'type': 'file_upload_error',
+            'message': f'文件合并失败: {str(e)}'
+        })
+
+
+async def handle_file_download_request(ws, data, current_username):
+    """处理文件下载请求"""
+    import base64
+
+    file_id = data.get('fileId')
+    start_chunk = data.get('startChunk', 0)  # 支持断点续传
+
+    # 查找文件
+    file_pattern = f"{file_id}_*"
+    import glob
+    matching_files = glob.glob(os.path.join(FILES_DIR, file_pattern))
+
+    if not matching_files:
+        await ws.send_json({
+            'type': 'file_download_error',
+            'message': '文件不存在'
+        })
+        return
+
+    file_path = matching_files[0]
+    filename = os.path.basename(file_path).split('_', 1)[1]
+    file_size = os.path.getsize(file_path)
+    total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
+
+    try:
+        # 发送文件信息
+        await ws.send_json({
+            'type': 'file_download_start',
+            'fileId': file_id,
+            'filename': filename,
+            'fileSize': file_size,
+            'totalChunks': total_chunks,
+            'chunkSize': CHUNK_SIZE
+        })
+
+        # 发送文件分片
+        with open(file_path, 'rb') as f:
+            for i in range(start_chunk, total_chunks):
+                f.seek(i * CHUNK_SIZE)
+                chunk_data = f.read(CHUNK_SIZE)
+                chunk_base64 = base64.b64encode(chunk_data).decode('utf-8')
+
+                await ws.send_json({
+                    'type': 'file_download_chunk',
+                    'fileId': file_id,
+                    'chunkIndex': i,
+                    'chunkData': chunk_base64,
+                    'totalChunks': total_chunks
+                })
+
+                # 添加小延迟避免过载
+                await asyncio.sleep(0.01)
+
+        print(f'✅ 文件下载完成: {filename}')
+
+        await ws.send_json({
+            'type': 'file_download_complete',
+            'fileId': file_id
+        })
+
+    except Exception as e:
+        print(f'❌ 文件下载失败: {str(e)}')
+        await ws.send_json({
+            'type': 'file_download_error',
+            'message': f'文件下载失败: {str(e)}'
+        })
+
+
+def create_app():
+    """创建应用"""
+    app = web.Application()
+
+    # 配置 CORS
+    cors = aiohttp_cors.setup(app, defaults={
+        "*": aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers="*",
+            allow_headers="*",
+        )
+    })
+
+    # AI聊天总结API处理函数（支持两种模式）
+    async def summarize_chat_handler(request):
+        """处理AI聊天总结请求 - 支持JSON（旧版）和multipart（新版）两种格式"""
+        try:
+            content_type = request.headers.get('Content-Type', '')
+
+            # 判断请求类型
+            if 'application/json' in content_type:
+                # 旧版模式：用户选择+时间范围（JSON格式）
+                data = await request.json()
+                users = data.get('users', [])
+                start_date = data.get('start_date', '')
+                end_date = data.get('end_date', '')
+                chat_content = data.get('chat_content', '')
+                custom_prompt = data.get('custom_prompt', '')
+
+                print(f'📊 收到AI总结请求（旧版）: 用户={users}, 消息数量={len(chat_content.split(chr(10)))}条')
+
+                # 构建总结prompt（旧版）
+                if custom_prompt:
+                    prompt = f"""{custom_prompt}
+
+【重要】请严格按照以下信息进行分析：
+- 关注用户：{', '.join(users)}
+- 时间范围：{start_date} 至 {end_date}
+
+聊天记录：
+{chat_content}"""
+                else:
+                    prompt = f"""请对以下聊天记录进行详细总结分析。
+
+【关键信息】
+- 关注用户：{', '.join(users)}
+- 时间范围：{start_date} 至 {end_date}
+
+【聊天记录】
+{chat_content}
+
+【分析要求】
+请严格按照以下几个方面进行总结：
+1. 核心主题：讨论的主要话题是什么
+2. 用户角色分析：所选用户在对话中的角色、立场和主要观点
+3. 关键信息：提取重要的信息点、决策或结论
+4. 情感基调：对话的整体氛围和情绪
+5. 行动项：是否有需要跟进的事项或待办任务
+
+请用清晰、简洁的中文进行总结。"""
+
+            else:
+                # 新版模式：上下文+待总结内容（multipart格式）
+                reader = await request.multipart()
+
+                context_text = ''
+                content_text = ''
+                custom_prompt = ''
+
+                # 处理表单字段
+                async for field in reader:
+                    if field.name == 'context_text':
+                        context_text = (await field.read()).decode('utf-8')
+                        print(f'📝 收到上下文文本: {len(context_text)} 字符')
+                    elif field.name == 'context_pdf':
+                        pdf_data = await field.read()
+                        # 验证PDF文件大小（最大10MB）
+                        if len(pdf_data) > 10 * 1024 * 1024:
+                            return web.json_response({
+                                'error': '上下文PDF文件大小不能超过10MB'
+                            }, status=400)
+                        context_text = await extract_text_from_pdf(pdf_data)
+                        print(f'📎 收到上下文PDF: {len(pdf_data)} 字节, 提取 {len(context_text)} 字符')
+                    elif field.name == 'content_text':
+                        content_text = (await field.read()).decode('utf-8')
+                        print(f'📝 收到总结文本: {len(content_text)} 字符')
+                    elif field.name == 'content_pdf':
+                        pdf_data = await field.read()
+                        # 验证PDF文件大小（最大10MB）
+                        if len(pdf_data) > 10 * 1024 * 1024:
+                            return web.json_response({
+                                'error': '总结PDF文件大小不能超过10MB'
+                            }, status=400)
+                        content_text = await extract_text_from_pdf(pdf_data)
+                        print(f'📎 收到总结PDF: {len(pdf_data)} 字节, 提取 {len(content_text)} 字符')
+                    elif field.name == 'custom_prompt':
+                        custom_prompt = (await field.read()).decode('utf-8')
+
+                print(f'📊 AI总结请求（新版）: 上下文={len(context_text)}字符, 内容={len(content_text)}字符')
+
+                # 验证输入
+                if not context_text or not content_text:
+                    return web.json_response({
+                        'error': '上下文和待总结内容不能为空'
+                    }, status=400)
+
+                # 构建总结prompt（新版）
+                if custom_prompt:
+                    prompt = f"""{custom_prompt}
+
+【上下文信息】（历史聊天记录作为背景）：
+{context_text}
+
+【需要总结的聊天记录】：
+{content_text}"""
+                else:
+                    prompt = f"""请对以下聊天记录进行详细总结分析。
+
+【上下文信息】（历史聊天记录作为背景）：
+{context_text}
+
+【需要总结的聊天记录】：
+{content_text}
+
+【分析要求】
+请结合上下文信息，对需要总结的聊天记录进行以下几个方面的总结：
+1. 核心主题：讨论的主要话题是什么
+2. 关键信息：提取重要的信息点、决策或结论
+3. 用户观点：主要参与者的立场和观点
+4. 情感基调：对话的整体氛围和情绪
+5. 行动项：是否有需要跟进的事项或待办任务
+6. 上下文关联：结合历史聊天记录，分析当前对话的背景和延续性
+
+请用清晰、简洁的中文进行总结。"""
+
+            # 调用Claude API进行总结
+            api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+            if not api_key:
+                return web.json_response({
+                    'error': 'API密钥未配置'
+                }, status=500)
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    'https://api.anthropic.com/v1/messages',
+                    headers={
+                        'x-api-key': api_key,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json'
+                    },
+                    json={
+                        'model': 'claude-3-5-sonnet-20241022',
+                        'max_tokens': 2048,
+                        'messages': [{
+                            'role': 'user',
+                            'content': prompt
+                        }]
+                    }
+                ) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        print(f'❌ Claude API错误: {error_text}')
+                        return web.json_response({
+                            'error': f'API调用失败: {error_text}'
+                        }, status=500)
+
+                    result = await response.json()
+                    summary = result['content'][0]['text']
+                    print(f'✅ AI总结完成，长度={len(summary)}字符')
+
+                    return web.json_response({
+                        'summary': summary
+                    })
+
+        except Exception as e:
+            print(f'❌ AI总结处理错误: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return web.json_response({
+                'error': str(e)
+            }, status=500)
+
+    # 天气API处理器
+    async def parse_chat_handler(request):
+        """处理PDF聊天记录解析请求 - Claude API代理"""
+        try:
+            # 获取请求数据
+            data = await request.json()
+            text = data.get('text', '')
+            prompt = data.get('prompt', '')
+
+            if not text:
+                return web.json_response({
+                    'error': '缺少文本参数'
+                }, status=400)
+
+            # 获取API密钥
+            api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+            if not api_key:
+                print('⚠️  未配置ANTHROPIC_API_KEY环境变量')
+                return web.json_response({
+                    'error': '未配置Claude API密钥'
+                }, status=500)
+
+            print(f'🤖 开始Claude API解析，文本长度: {len(text)}')
+
+            # 调用Claude API
+            claude_url = 'https://api.anthropic.com/v1/messages'
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01'
+            }
+
+            payload = {
+                'model': 'claude-3-5-sonnet-20241022',
+                'max_tokens': 4096,
+                'messages': [
+                    {
+                        'role': 'user',
+                        'content': prompt if prompt else f'解析以下文本:\n{text[:8000]}'
+                    }
+                ]
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(claude_url, headers=headers, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        print(f'❌ Claude API错误: {error_text}')
+                        return web.json_response({
+                            'error': f'Claude API调用失败: {error_text}'
+                        }, status=response.status)
+
+                    result = await response.json()
+                    print(f'✅ Claude API响应成功')
+
+                    # 返回Claude的响应
+                    return web.json_response(result)
+
+        except Exception as e:
+            print(f'❌ Claude API代理错误: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return web.json_response({
+                'error': str(e)
+            }, status=500)
+
+    async def weather_handler(request):
+        """获取天气信息"""
+        try:
+            # 从请求中获取经纬度
+            lat = request.query.get('lat')
+            lon = request.query.get('lon')
+
+            if not lat or not lon:
+                return web.json_response({
+                    'error': '缺少经纬度参数'
+                }, status=400)
+
+            # OpenWeatherMap API配置
+            weather_api_key = '547bca00ca205ddd4f903f8890d8b8e3'
+            weather_url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&lang=zh_cn&appid={weather_api_key}'
+
+            print(f'🌤️ 获取天气信息: lat={lat}, lon={lon}')
+
+            # 调用OpenWeatherMap API
+            async with aiohttp.ClientSession() as session:
+                async with session.get(weather_url) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        print(f'❌ 天气API错误: {error_text}')
+                        return web.json_response({
+                            'error': f'天气API调用失败: {error_text}'
+                        }, status=500)
+
+                    data = await response.json()
+                    print(f'✅ 天气数据获取成功: {data.get("name")}')
+
+                    # 返回处理后的天气数据
+                    return web.json_response({
+                        'temp': round(data['main']['temp']),
+                        'description': data['weather'][0]['description'],
+                        'city': data['name'],
+                        'weather_main': data['weather'][0]['main']
+                    })
+
+        except Exception as e:
+            print(f'❌ 天气处理错误: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return web.json_response({
+                'error': str(e)
+            }, status=500)
+
+    # 添加路由
+    app.router.add_get('/', index_handler)
+    app.router.add_get('/ws', websocket_handler)
+    app.router.add_post('/api/summarize_chat', summarize_chat_handler)
+    app.router.add_post('/api/parse-chat', parse_chat_handler)
+    app.router.add_get('/api/weather', weather_handler)
+    app.router.add_get('/{filename}', static_handler)
+
+    # 配置 CORS
+    for route in list(app.router.routes()):
+        if not isinstance(route.resource, web.StaticResource):
+            cors.add(route)
+
+    return app
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    print('=' * 60)
+    print(f'🚀 实时聊天应用启动')
+    print(f'📍 访问地址: http://localhost:{port}')
+    print(f'🔑 API密钥状态: {"✅ 已配置" if api_key else "❌ 未配置"}')
+    if api_key:
+        print(f'🔑 API密钥长度: {len(api_key)} 字符')
+    print('=' * 60)
+
+    # 加载持久化数据
+    print('📂 加载历史数据...')
+    load_data()
+    print('=' * 60)
+
+    app = create_app()
+    web.run_app(app, host='0.0.0.0', port=port)

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket 连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover { background: #0056b3; }
+        #log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket 连接测试</h1>
+
+        <div id="status" class="status info">等待连接...</div>
+
+        <div>
+            <input type="text" id="username" placeholder="输入昵称" style="padding: 8px; width: 200px;">
+            <button onclick="connect()">连接</button>
+            <button onclick="disconnect()">断开</button>
+        </div>
+
+        <h3>日志：</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            entry.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(message, className) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${className}`;
+        }
+
+        function connect() {
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('请输入昵称');
+                return;
+            }
+
+            log('正在连接到 ws://localhost:8080/ws ...');
+            updateStatus('正在连接...', 'info');
+
+            try {
+                ws = new WebSocket('ws://localhost:8080/ws');
+
+                ws.onopen = () => {
+                    log('✅ WebSocket 连接成功！', 'success');
+                    updateStatus('已连接', 'success');
+
+                    // 发送注册消息
+                    const registerMsg = {
+                        type: 'register',
+                        username: username
+                    };
+                    log('发送注册消息: ' + JSON.stringify(registerMsg));
+                    ws.send(JSON.stringify(registerMsg));
+                };
+
+                ws.onmessage = (event) => {
+                    log('📩 收到消息: ' + event.data, 'success');
+                    try {
+                        const data = JSON.parse(event.data);
+                        log('解析后: ' + JSON.stringify(data, null, 2));
+                    } catch (e) {
+                        log('无法解析消息: ' + e.message, 'error');
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    log('❌ WebSocket 错误: ' + error, 'error');
+                    updateStatus('连接错误', 'error');
+                };
+
+                ws.onclose = () => {
+                    log('🔌 WebSocket 已断开');
+                    updateStatus('已断开', 'error');
+                };
+
+            } catch (error) {
+                log('❌ 创建 WebSocket 失败: ' + error.message, 'error');
+                updateStatus('连接失败', 'error');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('主动断开连接');
+            }
+        }
+    </script>
+</body>
+</html>
