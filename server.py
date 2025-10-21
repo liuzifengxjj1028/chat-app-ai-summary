@@ -1184,9 +1184,9 @@ async def handle_3d_battle_message(data, current_user, ws):
 
 async def index_handler(request):
     """主页处理"""
-    # 优先使用dist目录（生产环境），否则使用开发环境的index.html
-    if os.path.exists('./dist/index.html'):
-        return web.FileResponse('./dist/index.html')
+    # 优先使用build目录（生产环境），否则使用开发环境的index.html
+    if os.path.exists('./build/index.html'):
+        return web.FileResponse('./build/index.html')
     return web.FileResponse('./index.html')
 
 
@@ -1194,10 +1194,10 @@ async def static_handler(request):
     """静态文件处理"""
     filename = request.match_info['filename']
 
-    # 生产环境：优先从dist目录读取
-    dist_path = f'./dist/{filename}'
-    if os.path.exists(dist_path):
-        return web.FileResponse(dist_path)
+    # 生产环境：优先从build目录读取
+    build_path = f'./build/{filename}'
+    if os.path.exists(build_path):
+        return web.FileResponse(build_path)
 
     # 开发环境：从根目录读取
     dev_path = f'./{filename}'
@@ -1205,8 +1205,8 @@ async def static_handler(request):
         return web.FileResponse(dev_path)
 
     # 如果文件不存在，返回index.html（支持前端路由）
-    if os.path.exists('./dist/index.html'):
-        return web.FileResponse('./dist/index.html')
+    if os.path.exists('./build/index.html'):
+        return web.FileResponse('./build/index.html')
     return web.FileResponse('./index.html')
 
 
@@ -1832,8 +1832,8 @@ def create_app():
     app.router.add_get('/api/weather', weather_handler)
 
     # 添加静态资源路由（Vite构建的assets目录）
-    if os.path.exists('./dist/assets'):
-        app.router.add_static('/assets', './dist/assets', name='assets')
+    if os.path.exists('./build/assets'):
+        app.router.add_static('/assets', './build/assets', name='assets')
 
     # 其他静态文件和SPA路由支持
     app.router.add_get('/{filename}', static_handler)

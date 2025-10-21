@@ -36,8 +36,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制服务器代码
 COPY server.py .
 
-# 从前端构建阶段复制dist
-COPY --from=frontend-builder /app/dist ./dist
+# 从前端构建阶段复制build目录（注意：是build不是dist）
+COPY --from=frontend-builder /app/build ./build
 
 # 创建数据目录
 RUN mkdir -p data/files
