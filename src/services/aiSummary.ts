@@ -246,7 +246,8 @@ ${contextMessages.length > 0 ? '- 可以参考背景上下文来更好地理解�
    * 调用AI API - 通过后端代理调用 Claude API
    */
   private static async callAIAPI(prompt: string): Promise<string> {
-    const BACKEND_URL = 'http://localhost:8080/api/summarize_chat';
+    // 动态构建API URL，支持本地开发和生产环境
+    const BACKEND_URL = `${window.location.origin}/api/summarize_chat`;
 
     try {
       console.log('🤖 通过后端调用 Claude API 生成总结...');

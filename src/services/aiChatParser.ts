@@ -57,7 +57,8 @@ ${text.substring(0, 8000)}
 请只返回JSON数组，不要包含任何markdown代码块标记或其他文字。`;
 
       // 调用后端API代理（避免CORS问题）
-      const response = await fetch('http://localhost:8080/api/parse-chat', {
+      // 动态构建API URL，支持本地开发和生产环境
+      const response = await fetch(`${window.location.origin}/api/parse-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
