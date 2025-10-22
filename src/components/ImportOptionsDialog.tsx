@@ -22,27 +22,27 @@ export function ImportOptionsDialog({ onTextImport }: ImportOptionsDialogProps) 
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
+    <div className="flex-1 flex flex-col bg-white overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="max-w-3xl w-full space-y-6">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-white">模拟群聊AI总结</h2>
-            <p className="text-slate-400">
+            <h2 className="text-2xl font-bold text-gray-900">模拟群聊AI总结</h2>
+            <p className="text-gray-600">
               粘贴聊天记录文本，查看解析后的群聊内容并生成AI总结
             </p>
           </div>
 
           {/* 文本输入区域 */}
           <div className="space-y-4">
-            <div className="bg-slate-800/50 rounded-lg p-4 space-y-2">
-              <h3 className="text-white font-medium text-sm flex items-center gap-2">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2 border border-gray-200">
+              <h3 className="text-gray-900 font-medium text-sm flex items-center gap-2">
                 <ClipboardPaste className="w-4 h-4" />
                 粘贴聊天记录
               </h3>
-              <p className="text-slate-400 text-xs">
+              <p className="text-gray-600 text-xs">
                 支持的格式示例：
               </p>
-              <pre className="text-slate-400 text-xs bg-slate-900/50 p-3 rounded border border-slate-700 overflow-x-auto">
+              <pre className="text-gray-700 text-xs bg-white p-3 rounded border border-gray-300 overflow-x-auto">
 {`Bud 2025年9月23日 15:23
 尽快哈
 可大力
@@ -55,7 +55,8 @@ export function ImportOptionsDialog({ onTextImport }: ImportOptionsDialogProps) 
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full h-96 p-4 border border-slate-600 rounded-lg font-mono text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full h-96 p-4 border-2 border-gray-300 rounded-lg font-mono text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm"
+              style={{ backgroundColor: '#ffffff' }}
               placeholder="在此粘贴聊天记录文本..."
             />
 
@@ -69,23 +70,23 @@ export function ImportOptionsDialog({ onTextImport }: ImportOptionsDialogProps) 
             </Button>
           </div>
 
-          <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">
-            <h3 className="text-white font-medium text-sm">格式说明：</h3>
-            <ul className="text-slate-400 text-sm space-y-2">
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+            <h3 className="text-gray-900 font-medium text-sm">格式说明：</h3>
+            <ul className="text-gray-700 text-sm space-y-2">
               <li className="flex items-start gap-2">
-                <span className="text-blue-400 mt-0.5">•</span>
+                <span className="text-blue-600 mt-0.5">•</span>
                 <span>
                   每条消息包含：<strong>用户名 日期 时间</strong>（如：Bud 2025年9月23日 15:23）
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-400 mt-0.5">•</span>
+                <span className="text-blue-600 mt-0.5">•</span>
                 <span>
                   消息内容在下一行，可以是多行文本
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-400 mt-0.5">•</span>
+                <span className="text-blue-600 mt-0.5">•</span>
                 <span>
                   支持 @提及 功能，会被自动识别
                 </span>

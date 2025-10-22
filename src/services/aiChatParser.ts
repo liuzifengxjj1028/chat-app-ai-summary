@@ -58,7 +58,9 @@ ${text.substring(0, 8000)}
 
       // 调用后端API代理（避免CORS问题）
       // 动态构建API URL，支持本地开发和生产环境
-      const response = await fetch(`${window.location.origin}/api/parse-chat`, {
+      const isDev = window.location.port === '3000';
+      const origin = isDev ? 'http://localhost:8080' : window.location.origin;
+      const response = await fetch(`${origin}/api/parse-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

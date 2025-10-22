@@ -48,8 +48,11 @@ export default function App() {
   // 初始化 WebSocket 连接和自动登录
   useEffect(() => {
     // 动态构建WebSocket URL
+    // 开发环境：使用localhost:8080
+    // 生产环境：使用当前域名
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host; // 包含域名和端口
+    const isDev = window.location.port === '3000'; // Vite开发服务器在3000端口
+    const host = isDev ? 'localhost:8080' : window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
     console.log('🔌 连接到WebSocket:', wsUrl);
@@ -364,7 +367,8 @@ export default function App() {
 
     // 动态构建WebSocket URL
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
+    const isDev = window.location.port === '3000'; // Vite开发服务器在3000端口
+    const host = isDev ? 'localhost:8080' : window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
     wsService.connect(wsUrl).catch((error) => {
