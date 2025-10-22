@@ -47,8 +47,15 @@ export default function App() {
 
   // 初始化 WebSocket 连接和自动登录
   useEffect(() => {
+    // 动态构建WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host; // 包含域名和端口
+    const wsUrl = `${protocol}//${host}/ws`;
+
+    console.log('🔌 连接到WebSocket:', wsUrl);
+
     // 连接到 WebSocket 服务器
-    wsService.connect('ws://localhost:8080/ws')
+    wsService.connect(wsUrl)
       .then(() => {
         console.log('WebSocket 连接成功');
 
@@ -354,7 +361,13 @@ export default function App() {
 
     // 断开 WebSocket 连接并重新连接
     wsService.disconnect();
-    wsService.connect('ws://localhost:8080/ws').catch((error) => {
+
+    // 动态构建WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws`;
+
+    wsService.connect(wsUrl).catch((error) => {
       console.error('重新连接失败:', error);
     });
   };
