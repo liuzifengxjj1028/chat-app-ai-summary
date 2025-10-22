@@ -172,7 +172,7 @@ export function SummaryResultDisplay({ result, onClose, onJumpToMessage }: Summa
             <div className="prose prose-invert max-w-none">
               {result.structuredSummary && onJumpToMessage ? (
                 // 使用结构化总结，每个句子可点击
-                <div className="text-slate-300 text-sm leading-relaxed space-y-3">
+                <div className="text-slate-300 text-sm leading-relaxed space-y-4">
                   {result.structuredSummary.map((sentence, index) => {
                     const hasRefs = sentence.messageIds.length > 0;
                     console.log(`📝 句子${index}: ${sentence.text.substring(0, 50)}... | 引用: ${sentence.messageIds.length}条消息`);
@@ -180,7 +180,8 @@ export function SummaryResultDisplay({ result, onClose, onJumpToMessage }: Summa
                     return (
                       <div
                         key={index}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           console.log('🖱️ 点击句子:', sentence.text.substring(0, 50));
                           if (hasRefs) {
                             console.log('🎯 跳转到消息:', sentence.messageIds);
@@ -191,16 +192,24 @@ export function SummaryResultDisplay({ result, onClose, onJumpToMessage }: Summa
                         }}
                         className={`${
                           hasRefs
-                            ? 'cursor-pointer hover:bg-blue-600/20 hover:border-l-4 hover:border-blue-400 hover:text-white transition-all duration-200 rounded px-3 py-2 -mx-3 border-l-4 border-transparent'
-                            : 'px-1 py-1'
+                            ? 'cursor-pointer bg-slate-700/30 hover:bg-blue-600/30 border-l-4 border-blue-500/50 hover:border-blue-400 transition-all duration-200 rounded-r px-4 py-3 shadow-sm hover:shadow-md'
+                            : 'px-2 py-2 opacity-60'
                         }`}
                         style={{
                           userSelect: hasRefs ? 'none' : 'text'
                         }}
-                        dangerouslySetInnerHTML={{
-                          __html: formatSummary(sentence.text),
-                        }}
-                      />
+                      >
+                        {hasRefs && (
+                          <div className="text-xs text-blue-400 mb-1 font-semibold">
+                            💡 点击跳转到相关消息 ({sentence.messageIds.length}条)
+                          </div>
+                        )}
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: formatSummary(sentence.text),
+                          }}
+                        />
+                      </div>
                     );
                   })}
                 </div>
