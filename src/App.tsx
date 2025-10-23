@@ -51,7 +51,7 @@ export default function App() {
     // 开发环境：使用localhost:8080
     // 生产环境：使用当前域名
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const isDev = window.location.port === '3000'; // Vite开发服务器在3000端口
+    const isDev = window.location.port === '3000' || window.location.port === '3001'; // Vite开发服务器在3000或3001端口
     const host = isDev ? 'localhost:8080' : window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
