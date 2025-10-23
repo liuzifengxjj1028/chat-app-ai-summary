@@ -488,11 +488,13 @@ export default function App() {
 
       // 显示总结结果
       setSummaryResult(result);
-      setShowSummaryDialog(false);
+      // 不再自动关闭对话框，保持抽屉打开状态
+      // setShowSummaryDialog(false);
     } catch (error) {
       console.error('AI总结生成失败:', error);
       alert(`AI总结生成失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      setShowSummaryDialog(false);
+      // 出错时也不关闭对话框，让用户可以重试
+      // setShowSummaryDialog(false);
     }
   };
 
@@ -728,20 +730,16 @@ export default function App() {
         </div>
       </div>
 
-      {/* AI总结对话框 */}
+      {/* AI总结对话框（右侧抽屉） */}
       {showSummaryDialog && (
         <AISummaryDialog
           messages={groupChatMessagesRef.current}
-          onClose={() => setShowSummaryDialog(false)}
+          onClose={() => {
+            setShowSummaryDialog(false);
+            setSummaryResult(null); // 关闭时清除总结结果
+          }}
           onSummarize={handleAISummarize}
-        />
-      )}
-
-      {/* AI总结结果显示 */}
-      {summaryResult && (
-        <SummaryResultDisplay
-          result={summaryResult}
-          onClose={() => setSummaryResult(null)}
+          summaryResult={summaryResult}
           onJumpToMessage={handleJumpToMessage}
         />
       )}

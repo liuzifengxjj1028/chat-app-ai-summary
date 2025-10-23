@@ -7,9 +7,10 @@ interface SummaryResultProps {
   result: SummaryResult;
   onClose: () => void;
   onJumpToMessage?: (messageIds: string[]) => void; // 点击总结句子时跳转到对应消息
+  embedded?: boolean; // 是否嵌入在其他组件中（如抽屉）
 }
 
-export function SummaryResultDisplay({ result, onClose, onJumpToMessage }: SummaryResultProps) {
+export function SummaryResultDisplay({ result, onClose, onJumpToMessage, embedded = false }: SummaryResultProps) {
   console.log('📊 SummaryResult - 结构化总结:', result.structuredSummary);
   console.log('📊 SummaryResult - 是否可跳转:', !!onJumpToMessage);
 
@@ -246,5 +247,11 @@ export function SummaryResultDisplay({ result, onClose, onJumpToMessage }: Summa
     </div>
   );
 
+  // 如果嵌入模式，直接返回内容（不使用 Portal 和遮罩层）
+  if (embedded) {
+    return dialogContent.props.children;
+  }
+
+  // 否则使用 Portal 创建弹窗
   return createPortal(dialogContent, document.body);
 }

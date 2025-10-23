@@ -3,14 +3,18 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './ui/button';
 import { ParsedMessage } from '../services/chatParser';
+import { SummaryResult } from '../services/aiSummary';
+import { SummaryResultDisplay } from './SummaryResult';
 
 interface AISummaryDialogProps {
   messages: ParsedMessage[];
   onClose: () => void;
   onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string) => void;
+  summaryResult?: SummaryResult | null;
+  onJumpToMessage?: (messageIds: string[]) => void;
 }
 
-export function AISummaryDialog({ messages, onClose, onSummarize }: AISummaryDialogProps) {
+export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult, onJumpToMessage }: AISummaryDialogProps) {
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>('');
@@ -87,23 +91,22 @@ export function AISummaryDialog({ messages, onClose, onSummarize }: AISummaryDia
         bottom: 0,
         zIndex: 9999,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'stretch',
+        justifyContent: 'flex-end',
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        padding: '1rem'
       }}
       onClick={(e) => {
-        // 点击背景遮罩层时关闭对话框
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+        // 点击背景遮罩层时不关闭对话框（改为不自动关闭）
+        // if (e.target === e.currentTarget) {
+        //   onClose();
+        // }
       }}
     >
       <div
-        className="bg-slate-800 rounded-lg shadow-2xl w-full flex flex-col"
+        className="bg-slate-800 shadow-2xl w-full flex flex-col animate-slide-in-right"
         style={{
-          maxWidth: '42rem',
-          maxHeight: '90vh'
+          maxWidth: '48rem',
+          height: '100vh'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -124,6 +127,18 @@ export function AISummaryDialog({ messages, onClose, onSummarize }: AISummaryDia
 
         {/* 内容区 - 可滚动 */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* 如果有总结结果，显示结果 */}
+          {summaryResult ? (
+            <div className="space-y-4">
+              <SummaryResultDisplay
+                result={summaryResult}
+                onClose={() => {/* 不需要单独关闭，由外部控制 */}}
+                onJumpToMessage={onJumpToMessage || (() => {})}
+                embedded={true}
+              />
+            </div>
+          ) : (
+            <>
           {/* 消息统计 */}
           <div className="bg-slate-700/50 rounded-lg p-4 space-y-2">
             <h3 className="text-sm font-medium text-slate-300">消息统计</h3>
@@ -224,33 +239,35 @@ export function AISummaryDialog({ messages, onClose, onSummarize }: AISummaryDia
             </div>
           )}
 
-          {/* 按钮组 */}
-          <div className="flex gap-3">
-            <Button
-              onClick={onClose}
-              className="flex-1 bg-slate-600 hover:bg-slate-500 text-white"
-              disabled={isLoading}
-            >
-              取消
-            </Button>
-            <Button
-              onClick={handleSummarize}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  生成中...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  开始总结
-                </>
-              )}
-            </Button>
-          </div>
+            {/* 按钮组 */}
+            <div className="flex gap-3">
+              <Button
+                onClick={onClose}
+                className="flex-1 bg-slate-600 hover:bg-slate-500 text-white"
+                disabled={isLoading}
+              >
+                取消
+              </Button>
+              <Button
+                onClick={handleSummarize}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    开始总结
+                  </>
+                )}
+              </Button>
+            </div>
+          </>
+          )}
         </div>
       </div>
     </div>
