@@ -93,20 +93,16 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
         display: 'flex',
         alignItems: 'stretch',
         justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      }}
-      onClick={(e) => {
-        // 点击背景遮罩层时不关闭对话框（改为不自动关闭）
-        // if (e.target === e.currentTarget) {
-        //   onClose();
-        // }
+        backgroundColor: 'transparent',
+        pointerEvents: 'none', // 允许点击穿透到后面的内容
       }}
     >
       <div
         className="bg-slate-800 shadow-2xl w-full flex flex-col animate-slide-in-right"
         style={{
           maxWidth: '48rem',
-          height: '100vh'
+          height: '100vh',
+          pointerEvents: 'auto' // 恢复抽屉本身的点击事件
         }}
         onClick={(e) => e.stopPropagation()}
       >
