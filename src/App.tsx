@@ -502,8 +502,8 @@ export default function App() {
   const handleJumpToMessage = (messageIds: string[]) => {
     console.log('跳转到消息:', messageIds);
 
-    // 关闭总结对话框
-    setSummaryResult(null);
+    // 不再关闭总结对话框，保持抽屉打开显示总结结果
+    // setSummaryResult(null);
 
     // 切换到群聊视图（如果不在）
     if (selectedContactId !== GROUP_CHAT_SUMMARY_ID) {
@@ -515,7 +515,7 @@ export default function App() {
     // 设置高亮消息ID，触发ChatWindow滚动和闪烁
     setHighlightMessageIds(messageIds);
 
-    // 1秒后清除高亮（避免切换视图时重复触发）
+    // 3秒后清除高亮
     setTimeout(() => {
       setHighlightMessageIds([]);
     }, 3000);
