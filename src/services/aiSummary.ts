@@ -26,6 +26,8 @@ export class AISummaryService {
     customPrompt?: string,
     currentUser?: string
   ): Promise<SummaryResult> {
+    console.log('🎯 generateSummary 收到的 currentUser:', currentUser);
+
     // 如果指定了时间范围，则需要区分重点总结范围和上下文范围
     let focusMessages: ParsedMessage[];
     let contextMessages: ParsedMessage[];
@@ -50,7 +52,9 @@ export class AISummaryService {
     const stats = ChatParser.getStatistics(focusMessages);
 
     // 构建用于AI的prompt
+    console.log('🔨 准备调用 buildPrompt，currentUser:', currentUser);
     const prompt = this.buildPrompt(focusMessages, contextMessages, customPrompt, currentUser);
+    console.log('📝 构建的 prompt 前500字符:', prompt.substring(0, 500));
 
     // 调用AI API生成总结
     const rawSummary = await this.callAIAPI(prompt);
