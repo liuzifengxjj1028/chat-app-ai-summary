@@ -23,7 +23,8 @@ export class AISummaryService {
     messages: ParsedMessage[],
     startTime?: Date,
     endTime?: Date,
-    customPrompt?: string
+    customPrompt?: string,
+    currentUser?: string
   ): Promise<SummaryResult> {
     // 如果指定了时间范围，则需要区分重点总结范围和上下文范围
     let focusMessages: ParsedMessage[];
@@ -197,6 +198,17 @@ ${customPrompt}
       prompt += `## 角色定位
 
 你是一个专业的信息整理助手,擅长从群聊记录中提取关键信息,为用户提供清晰、结构化的摘要。
+
+${currentUser ? `## 当前视角
+
+当前用户是："${currentUser}"
+
+请特别注意：在"🎯 与我相关的内容"部分，"我"指的是"${currentUser}"。重点分析与"${currentUser}"相关的对话，包括：
+- 直接@${currentUser}的消息
+- ${currentUser}参与讨论的话题
+- 需要${currentUser}处理或回应的事项
+- ${currentUser}发表的重要观点或决策
+` : ''}
 
 ## 任务目标
 

@@ -9,7 +9,7 @@ import { SummaryResultDisplay } from './SummaryResult';
 interface AISummaryDialogProps {
   messages: ParsedMessage[];
   onClose: () => void;
-  onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string) => void;
+  onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string) => void;
   summaryResult?: SummaryResult | null;
   onJumpToMessage?: (messageIds: string[]) => void;
 }
@@ -18,11 +18,26 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('准备中...');
 
   console.log('🟢 AISummaryDialog 渲染了，消息数量:', messages.length);
+
+  // 获取所有参与者列表
+  const getParticipants = () => {
+    const participantsMap = new Map<string, number>();
+    messages.forEach(msg => {
+      const count = participantsMap.get(msg.sender) || 0;
+      participantsMap.set(msg.sender, count + 1);
+    });
+    return Array.from(participantsMap.entries())
+      .sort((a, b) => b[1] - a[1]) // 按消息数量排序
+      .map(([name]) => name);
+  };
+
+  const participants = getParticipants();
 
   // 获取消息的时间范围
   const getTimeRange = () => {
@@ -47,6 +62,7 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
     const start = startTime ? new Date(startTime) : undefined;
     const end = endTime ? new Date(endTime) : undefined;
     const prompt = customPrompt.trim() || undefined;
+    const user = currentUser.trim() || undefined;
 
     setIsLoading(true);
     setLoadingProgress(0);
@@ -68,7 +84,7 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
       }, step.delay);
     });
 
-    onSummarize(start, end, prompt);
+    onSummarize(start, end, prompt, user);
   };
 
   // 格式化日期为 datetime-local 输入框需要的格式
@@ -154,6 +170,27 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
                 </div>
               )}
             </div>
+          </div>
+
+          {/* 用户视角选择 */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-white">选择"我"的视角</h3>
+            <select
+              value={currentUser}
+              onChange={(e) => setCurrentUser(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={isLoading}
+            >
+              <option value="">（未选择，使用通用视角）</option>
+              {participants.map(participant => (
+                <option key={participant} value={participant}>
+                  {participant}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400">
+              💡 选择一个参与者作为"我"，AI会从这个人的角度进行总结，重点关注与TA相关的内容。
+            </p>
           </div>
 
           {/* 时间范围选择 */}

@@ -471,17 +471,19 @@ export default function App() {
   };
 
   // 处理AI总结
-  const handleAISummarize = async (startTime?: Date, endTime?: Date, customPrompt?: string) => {
+  const handleAISummarize = async (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string) => {
     try {
       console.log('开始生成AI总结...');
       console.log('自定义prompt:', customPrompt || '(使用默认)');
+      console.log('当前用户视角:', currentUser || '(未选择)');
 
       // 调用AI服务生成总结
       const result = await AISummaryService.generateSummary(
         groupChatMessagesRef.current,
         startTime,
         endTime,
-        customPrompt
+        customPrompt,
+        currentUser
       );
 
       console.log('AI总结生成成功');
