@@ -50,7 +50,7 @@ export class AISummaryService {
     const stats = ChatParser.getStatistics(focusMessages);
 
     // 构建用于AI的prompt
-    const prompt = this.buildPrompt(focusMessages, contextMessages, customPrompt);
+    const prompt = this.buildPrompt(focusMessages, contextMessages, customPrompt, currentUser);
 
     // 调用AI API生成总结
     const rawSummary = await this.callAIAPI(prompt);
@@ -124,7 +124,8 @@ export class AISummaryService {
   private static buildPrompt(
     focusMessages: ParsedMessage[],
     contextMessages: ParsedMessage[] = [],
-    customPrompt?: string
+    customPrompt?: string,
+    currentUser?: string
   ): string {
     // 格式化重点总结的消息，带上索引编号
     const focusText = focusMessages
