@@ -465,7 +465,7 @@ async def call_llm_api(prompt, user_content):
                     'Content-Type': 'application/json'
                 },
                 json={
-                    'model': os.environ.get('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022'),
+                    'model': os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514'),
                     'max_tokens': 4096,
                     'system': prompt,
                     'messages': [
@@ -1680,7 +1680,7 @@ def create_app():
                         'content-type': 'application/json'
                     },
                     json={
-                        'model': 'claude-3-5-sonnet-20241022',
+                        'model': 'claude-sonnet-4-20250514',
                         'max_tokens': 2048,
                         'messages': [{
                             'role': 'user',
@@ -1744,7 +1744,7 @@ def create_app():
             }
 
             payload = {
-                'model': 'claude-3-5-sonnet-20241022',
+                'model': 'claude-sonnet-4-20250514',
                 'max_tokens': 4096,
                 'messages': [
                     {
