@@ -305,8 +305,8 @@ ${contextMessages.length > 0 ? '注意：可以参考背景上下文来更好地
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_content: prompt,
-          custom_prompt: '', // prompt 已经包含了所有内容
+          chat_content: '', // 使用custom_prompt字段传递完整prompt
+          custom_prompt: prompt, // prompt 已经包含了所有内容（包括currentUser视角）
           users: [],
           start_date: '',
           end_date: '',

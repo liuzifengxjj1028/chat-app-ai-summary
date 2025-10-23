@@ -1561,7 +1561,12 @@ def create_app():
                 print(f'📊 收到AI总结请求（旧版）: 用户={users}, 消息数量={len(chat_content.split(chr(10)))}条')
 
                 # 构建总结prompt（旧版）
-                if custom_prompt:
+                if custom_prompt and not chat_content:
+                    # 如果custom_prompt不为空且chat_content为空，说明是前端完整构建的prompt
+                    # 直接使用custom_prompt，不做任何修改
+                    prompt = custom_prompt
+                elif custom_prompt:
+                    # 旧版兼容模式：custom_prompt作为要求，chat_content作为聊天记录
                     prompt = f"""{custom_prompt}
 
 【重要】请严格按照以下信息进行分析：
@@ -1597,6 +1602,7 @@ def create_app():
                 context_text = ''
                 content_text = ''
                 custom_prompt = ''
+                current_user = ''
 
                 # 处理表单字段
                 async for field in reader:
@@ -1626,8 +1632,11 @@ def create_app():
                         print(f'📎 收到总结PDF: {len(pdf_data)} 字节, 提取 {len(content_text)} 字符')
                     elif field.name == 'custom_prompt':
                         custom_prompt = (await field.read()).decode('utf-8')
+                    elif field.name == 'current_user':
+                        current_user = (await field.read()).decode('utf-8')
+                        print(f'👤 当前用户视角: {current_user}')
 
-                print(f'📊 AI总结请求（新版）: 上下文={len(context_text)}字符, 内容={len(content_text)}字符')
+                print(f'📊 AI总结请求（新版）: 上下文={len(context_text)}字符, 内容={len(content_text)}字符, 用户视角={current_user or "(未选择)"}')
 
                 # 验证输入
                 if not context_text or not content_text:
