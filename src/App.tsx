@@ -402,7 +402,7 @@ export default function App() {
       console.log('解析完成，共', parsedMessages.length, '条消息');
 
       if (parsedMessages.length === 0) {
-        alert('未能解析出任何消息，请检查文本格式');
+        alert('未能解析出任何消息。\n\n支持的格式示例：\n1. 用户名 2024年10月23日 14:30\n2. 用户名\\n2024年10月23日 14:30\n\n请检查您的文本是否包含日期时间信息。\n\n提示：您也可以尝试使用PDF导入或JSON导入功能。');
         return;
       }
 

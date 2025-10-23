@@ -15,6 +15,7 @@ export class TextChatParser {
    */
   static parseText(text: string): ParsedMessage[] {
     console.log('📝 开始解析文本聊天记录，长度:', text.length);
+    console.log('📝 前200个字符预览:', text.substring(0, 200));
 
     const messages: ParsedMessage[] = [];
     const lines = text.split('\n');
