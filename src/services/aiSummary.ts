@@ -26,9 +26,26 @@ export class AISummaryService {
     customPrompt?: string,
     currentUser?: string,
     participantMode?: 'all' | 'selected',
-    selectedParticipants?: string[]
+    selectedParticipants?: string[],
+    currentDayEnd?: Date // 用户指定的"当前日期"结束时间
   ): Promise<SummaryResult> {
-    console.log('🎯 generateSummary 收到的 currentUser:', currentUser);
+    console.log('🎯 generateSummary 收到的参数:');
+    console.log('- startTime:', startTime);
+    console.log('- endTime:', endTime);
+    console.log('- currentDayEnd:', currentDayEnd);
+
+    // 如果设置了currentDayEnd，需要特殊处理：
+    // 1. 过滤掉所有在currentDayEnd之后的消息
+    // 2. 将消息分为两部分：当前日期的消息（focus）和之前的消息（context）
+    let allValidMessages = messages;
+    if (currentDayEnd) {
+      // 过滤掉currentDayEnd之后的所有消息
+      allValidMessages = messages.filter(msg => {
+        if (!msg.rawTimestamp) return true;
+        return msg.rawTimestamp <= currentDayEnd;
+      });
+      console.log(`📅 过滤掉"当前日期"之后的消息，剩余 ${allValidMessages.length}/${messages.length} 条`);
+    }
 
     // 如果指定了时间范围，则需要区分重点总结范围和上下文范围
     let focusMessages: ParsedMessage[];
@@ -36,17 +53,25 @@ export class AISummaryService {
 
     if (startTime || endTime) {
       // 按时间范围过滤消息 - 这是重点总结的范围
-      focusMessages = ChatParser.filterByTimeRange(messages, startTime, endTime);
+      focusMessages = ChatParser.filterByTimeRange(allValidMessages, startTime, endTime);
 
       if (focusMessages.length === 0) {
         throw new Error('选定时间范围内没有消息');
       }
 
-      // 其他消息作为上下文
-      contextMessages = messages.filter(msg => !focusMessages.includes(msg));
+      // 在startTime之前的消息作为上下文（不包括在endTime之后的）
+      contextMessages = allValidMessages.filter(msg => {
+        if (focusMessages.includes(msg)) return false; // 已经在focus中
+        if (!msg.rawTimestamp) return true;
+        // 只包含startTime之前的消息作为上下文
+        if (startTime && msg.rawTimestamp < startTime) return true;
+        return false;
+      });
+
+      console.log(`📊 消息分布: 上下文=${contextMessages.length}条, 重点总结=${focusMessages.length}条`);
     } else {
-      // 如果没有指定时间范围，所有消息都是重点
-      focusMessages = messages;
+      // 如果没有指定时间范围，所有有效消息都是重点
+      focusMessages = allValidMessages;
       contextMessages = [];
     }
 

@@ -9,7 +9,7 @@ import { SummaryResultDisplay } from './SummaryResult';
 interface AISummaryDialogProps {
   messages: ParsedMessage[];
   onClose: () => void;
-  onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string, participantMode?: 'all' | 'selected', selectedParticipants?: string[]) => void;
+  onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string, participantMode?: 'all' | 'selected', selectedParticipants?: string[], currentDayEnd?: Date) => void;
   summaryResult?: SummaryResult | null;
   onJumpToMessage?: (messageIds: string[]) => void;
 }
@@ -18,6 +18,7 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
   const [timeRangeOption, setTimeRangeOption] = useState<'today' | 'last3days' | 'last7days' | 'custom' | 'all'>('all');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
+  const [currentDateTime, setCurrentDateTime] = useState<string>(''); // 用户指定的"当前时间"，为空则使用真实当前时间
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [participantMode, setParticipantMode] = useState<'all' | 'selected'>('all');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
@@ -61,34 +62,42 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
   const timeRange = getTimeRange();
 
   // 根据时间范围选项计算实际的开始和结束时间
-  const calculateTimeRange = (): { start?: Date; end?: Date } => {
-    const now = new Date();
+  const calculateTimeRange = (): { start?: Date; end?: Date; currentDayEnd?: Date } => {
+    // 使用用户指定的"当前时间"，如果未指定则使用真实当前时间
+    const now = currentDateTime ? new Date(currentDateTime) : new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
     switch (timeRangeOption) {
       case 'today':
-        return { start: today, end: undefined };
+        return { start: today, end: todayEnd, currentDayEnd: todayEnd };
       case 'last3days':
         const last3days = new Date(today);
         last3days.setDate(last3days.getDate() - 3);
-        return { start: last3days, end: undefined };
+        return { start: last3days, end: todayEnd, currentDayEnd: todayEnd };
       case 'last7days':
         const last7days = new Date(today);
         last7days.setDate(last7days.getDate() - 7);
-        return { start: last7days, end: undefined };
+        return { start: last7days, end: todayEnd, currentDayEnd: todayEnd };
       case 'custom':
         return {
           start: startTime ? new Date(startTime) : undefined,
           end: endTime ? new Date(endTime) : undefined,
+          currentDayEnd: currentDateTime ? todayEnd : undefined,
         };
       case 'all':
       default:
-        return { start: undefined, end: undefined };
+        // 如果选择"全部时间"但设置了当前时间，则只显示到当前日期结束
+        return {
+          start: undefined,
+          end: currentDateTime ? todayEnd : undefined,
+          currentDayEnd: currentDateTime ? todayEnd : undefined
+        };
     }
   };
 
   const handleSummarize = () => {
-    const { start, end } = calculateTimeRange();
+    const { start, end, currentDayEnd } = calculateTimeRange();
     const prompt = customPrompt.trim() || undefined;
 
     // 验证：如果选择了指定用户模式，必须至少选择一个用户
@@ -117,7 +126,7 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
       }, step.delay);
     });
 
-    onSummarize(start, end, prompt, undefined, participantMode, selectedParticipants);
+    onSummarize(start, end, prompt, undefined, participantMode, selectedParticipants, currentDayEnd);
   };
 
   // 格式化日期为 datetime-local 输入框需要的格式
@@ -203,6 +212,39 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
                 </div>
               )}
             </div>
+          </div>
+
+          {/* 当前时间设置 */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-white">设置"当前时间"（可选）</h3>
+
+            <div className="space-y-2">
+              <input
+                type="datetime-local"
+                value={currentDateTime}
+                onChange={(e) => setCurrentDateTime(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={isLoading}
+              />
+
+              {currentDateTime && (
+                <button
+                  onClick={() => setCurrentDateTime('')}
+                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                  disabled={isLoading}
+                >
+                  使用真实当前时间
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-400">
+              💡 <strong>重要：</strong>设置后，将按以下规则总结：<br/>
+              • 只总结"当前日期"（所选日期当天）的消息<br/>
+              • "当前日期"之前的消息作为背景知识<br/>
+              • "当前日期"之后的消息<strong>完全不考虑</strong><br/>
+              • 留空则使用真实当前时间
+            </p>
           </div>
 
           {/* 时间范围选择 */}

@@ -471,13 +471,14 @@ export default function App() {
   };
 
   // 处理AI总结
-  const handleAISummarize = async (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string, participantMode?: 'all' | 'selected', selectedParticipants?: string[]) => {
+  const handleAISummarize = async (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string, participantMode?: 'all' | 'selected', selectedParticipants?: string[], currentDayEnd?: Date) => {
     try {
       console.log('开始生成AI总结...');
       console.log('自定义prompt:', customPrompt || '(使用默认)');
       console.log('当前用户视角:', currentUser || '(未选择)');
       console.log('参与者模式:', participantMode);
       console.log('选择的参与者:', selectedParticipants);
+      console.log('当前日期结束时间:', currentDayEnd);
 
       // 调用AI服务生成总结
       const result = await AISummaryService.generateSummary(
@@ -487,7 +488,8 @@ export default function App() {
         customPrompt,
         currentUser,
         participantMode,
-        selectedParticipants
+        selectedParticipants,
+        currentDayEnd
       );
 
       console.log('AI总结生成成功');
