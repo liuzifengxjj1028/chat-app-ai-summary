@@ -11,6 +11,7 @@ interface Message {
   contentType?: 'text' | 'image' | 'file';
   fileId?: string;
   fileSize?: number;
+  imageData?: string; // Base64 encoded image data
 }
 
 interface ChatWindowProps {
@@ -106,8 +107,21 @@ export function ChatWindow({ messages, contactName, isGroupChat = false, highlig
                     <div className="text-xs text-slate-400 mb-1">{message.sender}</div>
                   )}
 
-                  {/* 文件消息 */}
-                  {message.contentType === 'file' && message.fileId ? (
+                  {/* 图片消息（粘贴的截图） */}
+                  {message.imageData ? (
+                    <div className="flex flex-col gap-2">
+                      {message.content && message.content !== '[图片]' && (
+                        <div>{message.content}</div>
+                      )}
+                      <img
+                        src={message.imageData}
+                        alt="聊天图片"
+                        className="max-w-sm rounded border border-white/10"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : message.contentType === 'file' && message.fileId ? (
+                    /* 文件消息 */
                     <div className="flex items-center gap-3">
                       <FileIcon className="w-8 h-8" />
                       <div className="flex-1">

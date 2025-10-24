@@ -9,16 +9,18 @@ import { SummaryResultDisplay } from './SummaryResult';
 interface AISummaryDialogProps {
   messages: ParsedMessage[];
   onClose: () => void;
-  onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string) => void;
+  onSummarize: (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string, participantMode?: 'all' | 'selected', selectedParticipants?: string[]) => void;
   summaryResult?: SummaryResult | null;
   onJumpToMessage?: (messageIds: string[]) => void;
 }
 
 export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult, onJumpToMessage }: AISummaryDialogProps) {
+  const [timeRangeOption, setTimeRangeOption] = useState<'today' | 'last3days' | 'last7days' | 'custom' | 'all'>('all');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState<string>('');
-  const [currentUser, setCurrentUser] = useState<string>('');
+  const [participantMode, setParticipantMode] = useState<'all' | 'selected'>('all');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('准备中...');
@@ -58,11 +60,42 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
 
   const timeRange = getTimeRange();
 
+  // 根据时间范围选项计算实际的开始和结束时间
+  const calculateTimeRange = (): { start?: Date; end?: Date } => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (timeRangeOption) {
+      case 'today':
+        return { start: today, end: undefined };
+      case 'last3days':
+        const last3days = new Date(today);
+        last3days.setDate(last3days.getDate() - 3);
+        return { start: last3days, end: undefined };
+      case 'last7days':
+        const last7days = new Date(today);
+        last7days.setDate(last7days.getDate() - 7);
+        return { start: last7days, end: undefined };
+      case 'custom':
+        return {
+          start: startTime ? new Date(startTime) : undefined,
+          end: endTime ? new Date(endTime) : undefined,
+        };
+      case 'all':
+      default:
+        return { start: undefined, end: undefined };
+    }
+  };
+
   const handleSummarize = () => {
-    const start = startTime ? new Date(startTime) : undefined;
-    const end = endTime ? new Date(endTime) : undefined;
+    const { start, end } = calculateTimeRange();
     const prompt = customPrompt.trim() || undefined;
-    const user = currentUser.trim() || undefined;
+
+    // 验证：如果选择了指定用户模式，必须至少选择一个用户
+    if (participantMode === 'selected' && (!selectedParticipants || selectedParticipants.length === 0)) {
+      alert('请至少选择一个用户进行总结');
+      return;
+    }
 
     setIsLoading(true);
     setLoadingProgress(0);
@@ -84,7 +117,7 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
       }, step.delay);
     });
 
-    onSummarize(start, end, prompt, user);
+    onSummarize(start, end, prompt, undefined, participantMode, selectedParticipants);
   };
 
   // 格式化日期为 datetime-local 输入框需要的格式
@@ -172,72 +205,146 @@ export function AISummaryDialog({ messages, onClose, onSummarize, summaryResult,
             </div>
           </div>
 
-          {/* 用户视角选择 */}
+          {/* 时间范围选择 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-white">选择"我"的视角</h3>
+            <h3 className="text-sm font-medium text-white">选择总结时间范围</h3>
+
             <select
-              value={currentUser}
-              onChange={(e) => setCurrentUser(e.target.value)}
+              value={timeRangeOption}
+              onChange={(e) => setTimeRangeOption(e.target.value as any)}
               className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               disabled={isLoading}
             >
-              <option value="">（未选择，使用通用视角）</option>
-              {participants.map(participant => (
-                <option key={participant} value={participant}>
-                  {participant}
-                </option>
-              ))}
+              <option value="all">全部时间</option>
+              <option value="today">今天</option>
+              <option value="last3days">近3天</option>
+              <option value="last7days">近7天</option>
+              <option value="custom">自定义</option>
             </select>
-            <p className="text-xs text-slate-400">
-              💡 选择一个参与者作为"我"，AI会从这个人的角度进行总结，重点关注与TA相关的内容。
-            </p>
+
+            {/* 自定义时间范围 */}
+            {timeRangeOption === 'custom' && (
+              <div className="space-y-3 pl-4 border-l-2 border-purple-500">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">开始时间</label>
+                  <input
+                    type="datetime-local"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    max={endTime || (timeRange ? formatDateTimeLocal(timeRange.end) : undefined)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">结束时间</label>
+                  <input
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    min={startTime || (timeRange ? formatDateTimeLocal(timeRange.start) : undefined)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {(startTime || endTime) && (
+                  <button
+                    onClick={() => {
+                      setStartTime('');
+                      setEndTime('');
+                    }}
+                    className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                    disabled={isLoading}
+                  >
+                    清除自定义时间
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* 时间范围选择 */}
+          {/* 参与者选择 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-white">选择总结时间范围（可选）</h3>
+            <h3 className="text-sm font-medium text-white">选择总结的参与者</h3>
 
             <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">开始时间</label>
-                <input
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  max={endTime || (timeRange ? formatDateTimeLocal(timeRange.end) : undefined)}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  disabled={isLoading}
-                />
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="participantMode"
+                    value="all"
+                    checked={participantMode === 'all'}
+                    onChange={() => setParticipantMode('all')}
+                    disabled={isLoading}
+                    className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-white text-sm">全部人</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="participantMode"
+                    value="selected"
+                    checked={participantMode === 'selected'}
+                    onChange={() => setParticipantMode('selected')}
+                    disabled={isLoading}
+                    className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-white text-sm">指定用户</span>
+                </label>
               </div>
 
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">结束时间</label>
-                <input
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  min={startTime || (timeRange ? formatDateTimeLocal(timeRange.start) : undefined)}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  disabled={isLoading}
-                />
-              </div>
+              {/* 多选参与者 */}
+              {participantMode === 'selected' && (
+                <div className="pl-4 border-l-2 border-purple-500 space-y-2">
+                  <p className="text-xs text-slate-400 mb-2">
+                    选择要总结的用户（至少选择一个）：
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {participants.map(participant => (
+                      <label key={participant} className="flex items-center gap-2 cursor-pointer hover:bg-slate-700/30 px-2 py-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={selectedParticipants.includes(participant)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedParticipants(prev => [...prev, participant]);
+                            } else {
+                              setSelectedParticipants(prev => prev.filter(p => p !== participant));
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded"
+                        />
+                        <span className="text-white text-sm">{participant}</span>
+                      </label>
+                    ))}
+                  </div>
 
-              {(startTime || endTime) && (
-                <button
-                  onClick={() => {
-                    setStartTime('');
-                    setEndTime('');
-                  }}
-                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
-                  disabled={isLoading}
-                >
-                  清除时间选择
-                </button>
+                  {selectedParticipants.length > 0 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-600">
+                      <span className="text-xs text-slate-400">
+                        已选择 {selectedParticipants.length} 人
+                      </span>
+                      <button
+                        onClick={() => setSelectedParticipants([])}
+                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                        disabled={isLoading}
+                      >
+                        清除选择
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
             <p className="text-xs text-slate-400">
-              💡 留空表示总结全部聊天记录。选择时间范围可以只总结特定时间段的对话。
+              💡 选择"全部人"会总结核心话题；选择"指定用户"会按用户分别总结相关话题。
             </p>
           </div>
 

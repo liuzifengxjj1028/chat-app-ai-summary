@@ -7,6 +7,7 @@ export interface ParsedMessage {
   content: string;
   timestamp: string;
   rawTimestamp?: Date;
+  imageData?: string; // Base64 encoded image data
 }
 
 export class ChatParser {

@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { createWorker } from 'tesseract.js';
 
 interface TextChatImportProps {
-  onImport: (text: string) => void;
+  onImport: (text: string, images: Array<{ id: string; base64: string }>) => void;
 }
 
 export function TextChatImport({ onImport }: TextChatImportProps) {
   const [text, setText] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
+  const [images, setImages] = useState<Array<{ id: string; base64: string; preview: string }>>([]);
 
   const handleImport = () => {
     if (text.trim()) {
-      onImport(text);
+      onImport(text, images.map(img => ({ id: img.id, base64: img.base64 })));
       setText('');
+      setImages([]);
     }
   };
 
@@ -32,44 +31,39 @@ export function TextChatImport({ onImport }: TextChatImportProps) {
 
         console.log('📷 检测到图片粘贴:', file.name, file.type);
 
-        // 使用OCR识别图片中的文字
-        setIsProcessing(true);
-        setOcrProgress(0);
+        // 将图片转为Base64
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          const imageId = `IMG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        try {
-          const worker = await createWorker('chi_sim+eng', 1, {
-            logger: m => {
-              if (m.status === 'recognizing text') {
-                setOcrProgress(Math.round(m.progress * 100));
-              }
-            }
-          });
+          // 保存图片
+          setImages(prev => [...prev, {
+            id: imageId,
+            base64,
+            preview: base64
+          }]);
 
-          const imageUrl = URL.createObjectURL(file);
-          const { data: { text: recognizedText } } = await worker.recognize(imageUrl);
-
-          await worker.terminate();
-          URL.revokeObjectURL(imageUrl);
-
-          console.log('✅ OCR识别完成，识别到', recognizedText.length, '个字符');
-
-          // 将识别的文字追加到文本框
+          // 在文本中插入图片占位符
           setText(prev => {
-            const newText = prev ? prev + '\n\n' + recognizedText : recognizedText;
+            const imageMarker = `[图片:${imageId}]`;
+            const newText = prev ? prev + '\n' + imageMarker + '\n' : imageMarker + '\n';
             return newText;
           });
 
-        } catch (error) {
-          console.error('❌ OCR识别失败:', error);
-          alert('图片识别失败，请重试或手动输入文本');
-        } finally {
-          setIsProcessing(false);
-          setOcrProgress(0);
-        }
+          console.log('✅ 图片已保存:', imageId);
+        };
+        reader.readAsDataURL(file);
 
         break; // 只处理第一个图片
       }
     }
+  };
+
+  const handleRemoveImage = (imageId: string) => {
+    setImages(prev => prev.filter(img => img.id !== imageId));
+    // 从文本中移除对应的图片标记
+    setText(prev => prev.replace(new RegExp(`\\[图片:${imageId}\\]\\n?`, 'g'), ''));
   };
 
   return (
@@ -79,35 +73,43 @@ export function TextChatImport({ onImport }: TextChatImportProps) {
           粘贴聊天记录
         </label>
         <p className="text-xs text-gray-500">
-          支持文本或图片粘贴。格式示例：
+          支持文本和图片粘贴。格式示例：
           <br />
           <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
             Bud 2025年9月23日 15:23<br />
             消息内容<br />
+            [图片:IMG_xxx] (图片会自动插入)<br />
             <br />
             可大力 2025年9月23日 15:41<br />
             消息内容
           </code>
           <br />
-          <span className="text-blue-600 font-medium">💡 新功能：支持粘贴截图，自动识别图片中的文字</span>
+          <span className="text-blue-600 font-medium">💡 支持粘贴截图，图片会自动保存并在聊天记录中显示</span>
         </p>
       </div>
 
-      {/* OCR处理进度提示 */}
-      {isProcessing && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">正在识别图片中的文字...</p>
-              <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${ocrProgress}%` }}
-                ></div>
+      {/* 显示已粘贴的图片预览 */}
+      {images.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">已添加的图片 ({images.length})</label>
+          <div className="grid grid-cols-3 gap-2">
+            {images.map(img => (
+              <div key={img.id} className="relative group">
+                <img
+                  src={img.preview}
+                  alt="粘贴的图片"
+                  className="w-full h-24 object-cover rounded border border-gray-300"
+                />
+                <button
+                  onClick={() => handleRemoveImage(img.id)}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="删除图片"
+                >
+                  ×
+                </button>
+                <div className="text-xs text-gray-500 mt-1 truncate">{img.id}</div>
               </div>
-              <p className="text-xs text-blue-700 mt-1">{ocrProgress}%</p>
-            </div>
+            ))}
           </div>
         </div>
       )}
@@ -118,14 +120,13 @@ export function TextChatImport({ onImport }: TextChatImportProps) {
         onChange={(e) => setText(e.target.value)}
         onPaste={handlePaste}
         placeholder="在此粘贴聊天记录文本或截图..."
-        disabled={isProcessing}
-        className="w-full h-96 p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="w-full h-96 p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
       <div className="flex items-center gap-4">
         <button
           onClick={handleImport}
-          disabled={!text.trim() || isProcessing}
+          disabled={!text.trim()}
           className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           解析并导入
@@ -137,9 +138,9 @@ export function TextChatImport({ onImport }: TextChatImportProps) {
           </span>
         )}
 
-        {isProcessing && (
+        {images.length > 0 && (
           <span className="text-sm text-blue-600 font-medium">
-            正在识别图片...
+            {images.length} 张图片
           </span>
         )}
       </div>

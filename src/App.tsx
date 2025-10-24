@@ -393,12 +393,12 @@ export default function App() {
   };
 
   // 处理群聊记录导入（文本）
-  const handleTextChatImport = (text: string) => {
+  const handleTextChatImport = (text: string, images: Array<{ id: string; base64: string }> = []) => {
     try {
-      console.log('开始解析文本聊天记录，长度:', text.length);
+      console.log('开始解析文本聊天记录，长度:', text.length, ', 图片数量:', images.length);
 
       // 使用TextChatParser解析
-      const parsedMessages = TextChatParser.parseText(text);
+      const parsedMessages = TextChatParser.parseText(text, images);
       console.log('解析完成，共', parsedMessages.length, '条消息');
 
       if (parsedMessages.length === 0) {
@@ -471,11 +471,13 @@ export default function App() {
   };
 
   // 处理AI总结
-  const handleAISummarize = async (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string) => {
+  const handleAISummarize = async (startTime?: Date, endTime?: Date, customPrompt?: string, currentUser?: string, participantMode?: 'all' | 'selected', selectedParticipants?: string[]) => {
     try {
       console.log('开始生成AI总结...');
       console.log('自定义prompt:', customPrompt || '(使用默认)');
       console.log('当前用户视角:', currentUser || '(未选择)');
+      console.log('参与者模式:', participantMode);
+      console.log('选择的参与者:', selectedParticipants);
 
       // 调用AI服务生成总结
       const result = await AISummaryService.generateSummary(
@@ -483,7 +485,9 @@ export default function App() {
         startTime,
         endTime,
         customPrompt,
-        currentUser
+        currentUser,
+        participantMode,
+        selectedParticipants
       );
 
       console.log('AI总结生成成功');

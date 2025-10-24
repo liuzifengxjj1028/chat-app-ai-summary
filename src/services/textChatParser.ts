@@ -11,11 +11,37 @@ import { ParsedMessage } from './chatParser';
  */
 export class TextChatParser {
   /**
+   * 处理消息内容，提取图片
+   */
+  private static processContent(content: string, imageMap: Map<string, string>): { content: string; imageData?: string } {
+    // 检测内容中是否有图片标记
+    const imageMatch = content.match(/\[图片:(IMG_[^\]]+)\]/);
+    let imageData: string | undefined;
+    let finalContent = content;
+
+    if (imageMatch) {
+      const imageId = imageMatch[1];
+      imageData = imageMap.get(imageId);
+      // 从内容中移除图片标记
+      finalContent = content.replace(/\[图片:IMG_[^\]]+\]\n?/g, '').trim();
+      console.log(`🖼️  检测到图片标记: ${imageId}, 有数据: ${!!imageData}`);
+    }
+
+    return {
+      content: finalContent || '[图片]', // 如果移除标记后内容为空，显示[图片]
+      imageData
+    };
+  }
+
+  /**
    * 解析文本聊天记录
    */
-  static parseText(text: string): ParsedMessage[] {
-    console.log('📝 开始解析文本聊天记录，长度:', text.length);
+  static parseText(text: string, images: Array<{ id: string; base64: string }> = []): ParsedMessage[] {
+    console.log('📝 开始解析文本聊天记录，长度:', text.length, ', 图片数量:', images.length);
     console.log('📝 前200个字符预览:', text.substring(0, 200));
+
+    // 创建图片ID到Base64的映射
+    const imageMap = new Map(images.map(img => [img.id, img.base64]));
 
     const messages: ParsedMessage[] = [];
     const lines = text.split('\n');
@@ -95,12 +121,15 @@ export class TextChatParser {
           i++;
         }
 
-        const content = contentLines.join('\n');
+        const rawContent = contentLines.join('\n');
 
         // 创建消息对象
         const dateString = `${year}-${month}-${day}T${hour}:${minute}:00`;
         const rawTimestamp = new Date(dateString);
         const timestamp = `${month}月${day}日 ${hour}:${minute}`;
+
+        // 处理内容和图片
+        const { content, imageData } = this.processContent(rawContent, imageMap);
 
         messages.push({
           id: `msg-${messageIndex++}`,
@@ -108,6 +137,7 @@ export class TextChatParser {
           content,
           timestamp,
           rawTimestamp,
+          imageData,
         });
 
         console.log(`✅ 添加消息: "${sender}" - "${content.substring(0, 30)}..."`);
@@ -169,10 +199,13 @@ export class TextChatParser {
               i++;
             }
 
-            const content = contentLines.join('\n');
+            const rawContent = contentLines.join('\n');
             const dateString = `${year}-${month}-${day}T${hour}:${minute}:00`;
             const rawTimestamp = new Date(dateString);
             const timestamp = `${month}月${day}日 ${hour}:${minute}`;
+
+            // 处理内容和图片
+            const { content, imageData } = this.processContent(rawContent, imageMap);
 
             messages.push({
               id: `msg-${messageIndex++}`,
@@ -180,6 +213,7 @@ export class TextChatParser {
               content,
               timestamp,
               rawTimestamp,
+              imageData,
             });
 
             console.log(`✅ 添加消息(特殊格式1): "${sender}" - "${content.substring(0, 30)}..."`);
@@ -224,10 +258,13 @@ export class TextChatParser {
               i++;
             }
 
-            const content = contentLines.join('\n');
+            const rawContent = contentLines.join('\n');
             const dateString = `${year}-${month}-${day}T${hour}:${minute}:00`;
             const rawTimestamp = new Date(dateString);
             const timestamp = `${month}月${day}日 ${hour}:${minute}`;
+
+            // 处理内容和图片
+            const { content, imageData } = this.processContent(rawContent, imageMap);
 
             messages.push({
               id: `msg-${messageIndex++}`,
@@ -235,6 +272,7 @@ export class TextChatParser {
               content,
               timestamp,
               rawTimestamp,
+              imageData,
             });
 
             console.log(`✅ 添加消息(特殊格式2): "${sender}" - "${content.substring(0, 30)}..."`);

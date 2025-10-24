@@ -24,7 +24,9 @@ export class AISummaryService {
     startTime?: Date,
     endTime?: Date,
     customPrompt?: string,
-    currentUser?: string
+    currentUser?: string,
+    participantMode?: 'all' | 'selected',
+    selectedParticipants?: string[]
   ): Promise<SummaryResult> {
     console.log('🎯 generateSummary 收到的 currentUser:', currentUser);
 
@@ -52,8 +54,8 @@ export class AISummaryService {
     const stats = ChatParser.getStatistics(focusMessages);
 
     // 构建用于AI的prompt
-    console.log('🔨 准备调用 buildPrompt，currentUser:', currentUser);
-    const prompt = this.buildPrompt(focusMessages, contextMessages, customPrompt, currentUser);
+    console.log('🔨 准备调用 buildPrompt，currentUser:', currentUser, 'participantMode:', participantMode, 'selectedParticipants:', selectedParticipants);
+    const prompt = this.buildPrompt(focusMessages, contextMessages, customPrompt, currentUser, participantMode, selectedParticipants);
     console.log('📝 构建的 prompt 前500字符:', prompt.substring(0, 500));
 
     // 调用AI API生成总结
@@ -129,7 +131,9 @@ export class AISummaryService {
     focusMessages: ParsedMessage[],
     contextMessages: ParsedMessage[] = [],
     customPrompt?: string,
-    currentUser?: string
+    currentUser?: string,
+    participantMode?: 'all' | 'selected',
+    selectedParticipants?: string[]
   ): string {
     // 格式化重点总结的消息，带上索引编号
     const focusText = focusMessages
@@ -204,29 +208,58 @@ ${customPrompt}
 
 你是一个专业的信息整理助手,擅长从群聊记录中提取关键信息,为用户提供清晰、结构化的摘要。
 
-${currentUser ? `## 当前视角
-
-当前用户是："${currentUser}"
-
-请特别注意：在"🎯 与我相关的内容"部分，"我"指的是"${currentUser}"。重点分析与"${currentUser}"相关的对话，包括：
-- 直接@${currentUser}的消息
-- ${currentUser}参与讨论的话题
-- 需要${currentUser}处理或回应的事项
-- ${currentUser}发表的重要观点或决策
-` : ''}
-
 ## 任务目标
 
 分析群聊/对话消息,提供结构化摘要,准确传达核心信息,严禁产生幻觉或推测。
 
-## 输出结构(必须包含以下3个部分)
+${participantMode === 'selected' && selectedParticipants && selectedParticipants.length > 0 ? `
+## 参与者总结模式
+
+本次总结需要**按用户分别总结**，重点关注以下用户：${selectedParticipants.join('、')}
+
+请按以下格式组织总结：
+- 为每个指定用户单独总结其参与的话题和观点
+- 格式：**{用户名}**: 话题1: ..., 话题2: ..., 话题3: ...
+- 只总结该用户实际参与或相关的话题（忽略无关话题）
+- 每个用户的总结应简洁明了，突出重点
+` : `
+## 参与者总结模式
+
+本次总结采用**核心话题模式**，请总结所有参与者共同讨论的核心话题，不需要按用户分别列举。
+`}
+
+## 输出结构(必须包含以下2个部分)
 
 ### 1. 📊 概览统计
-- 未读消息总数:精确数字(不使用"约"、"大概"等模糊词)
+- 消息总数:精确数字(不使用"约"、"大概"等模糊词)
 - 参与人数:精确数字
 - 参与者列表:列出所有发言者姓名
 
-### 2. 💬 讨论话题
+### 2. 💬 ${participantMode === 'selected' && selectedParticipants && selectedParticipants.length > 0 ? '按用户总结' : '讨论话题'}
+${participantMode === 'selected' && selectedParticipants && selectedParticipants.length > 0 ? `
+按用户分别总结其参与的话题和观点：
+- 每个用户只显示一次名字，作为标题
+- 用户名下列出该用户参与的所有话题
+- 每个话题格式：**话题名称**: 结合上下文的完整总结
+- 每个话题只出现一次，避免重复
+- 示例格式：
+
+**张三**
+- **项目进度**: 提出需要延期一周。原因是遇到了技术难题，需要更多时间来解决。
+- **技术方案**: 建议使用React重构前端，认为这样可以提高开发效率和代码可维护性。
+
+**李四**
+- **项目进度**: 同意延期但要求控制在5天内，强调不能影响整体交付时间。
+- **预算讨论**: 申请增加2万预算用于外包，用来加快进度。
+
+注意事项:
+- ✅ 每个用户名作为标题，只出现一次
+- ✅ 用户下的每个话题都可以单独点击跳转
+- ✅ 话题总结要结合上下文，完整表达
+- ✅ 同一话题只总结一次，合并相关讨论
+- ❌ 不要为没有发言或无关的用户创建条目
+- ❌ 忽略无实质内容的消息(单纯表情、"好的"、"收到"等)
+` : `
 按话题分组,每个话题包含:
 - 话题标题:简洁描述(控制在10字以内)
 - 消息数量:该话题的消息条数
@@ -241,14 +274,7 @@ ${currentUser ? `## 当前视角
 - ✅ 与当前用户无关的话题简要概括即可(1-2句话)
 - ❌ 不单独列出"时间线"、"决策人"、"关键决策"等独立小节
 - ❌ 忽略无实质内容的消息(单纯表情、"好的"、"收到"、系统通知等)
-
-### 3. 🎯 与我相关的内容
-- 相关度评分:0-100分
-- 评分理由:列出1-3条具体原因,使用 ✅/❌ 标记
-- 需要我处理的事项(如有):
-  * 使用序号列表
-  * 每项以 emoji + 加粗关键词开头
-  * 包含具体行动和截止时间(如有)
+`}
 
 ${contextMessages.length > 0 ? '注意：可以参考背景上下文来更好地理解对话，但重点分析"需要重点总结的对话"部分。' : ''}
 
@@ -256,8 +282,54 @@ ${contextMessages.length > 0 ? '注意：可以参考背景上下文来更好地
 
 **你必须严格按照以下JSON格式返回，不要添加任何markdown代码块标记（\`\`\`json），直接返回纯JSON对象：**
 
+${participantMode === 'selected' && selectedParticipants && selectedParticipants.length > 0 ? `
 {
-  "summary": "📊 概览统计\\n未读消息总数: XX条\\n参与人数: XX人\\n参与者列表: XXX、XXX、XXX\\n\\n💬 讨论话题\\n\\n**话题1标题** (XX条消息)\\n核心内容的叙事描述...\\n\\n**话题2标题** (XX条消息)\\n核心内容的叙事描述...\\n\\n🎯 与我相关的内容\\n相关度评分: XX/100分\\n评分理由:\\n✅ 理由1\\n✅ 理由2\\n\\n需要我处理的事项:\\n1. 📋 **事项1** - 具体内容和截止时间\\n2. ⚠️ **事项2** - 具体内容和截止时间",
+  "summary": "📊 概览统计\\n消息总数: XX条\\n参与人数: XX人\\n参与者列表: XXX、XXX、XXX\\n\\n💬 按用户总结\\n\\n**用户A**\\n- **话题1**: 完整的话题总结内容...\\n- **话题2**: 完整的话题总结内容...\\n\\n**用户B**\\n- **话题1**: 完整的话题总结内容...\\n- **话题2**: 完整的话题总结内容...",
+  "sentences": [
+    {
+      "text": "📊 概览统计部分的完整内容",
+      "refs": []
+    },
+    {
+      "text": "**用户A**",
+      "refs": []
+    },
+    {
+      "text": "- **话题1**: 完整的话题总结内容，结合上下文描述",
+      "refs": [0, 1, 2]
+    },
+    {
+      "text": "- **话题2**: 完整的话题总结内容，结合上下文描述",
+      "refs": [5, 6]
+    },
+    {
+      "text": "**用户B**",
+      "refs": []
+    },
+    {
+      "text": "- **话题1**: 完整的话题总结内容，结合上下文描述",
+      "refs": [8, 10]
+    },
+    {
+      "text": "- **话题2**: 完整的话题总结内容，结合上下文描述",
+      "refs": [12, 15]
+    }
+  ]
+}
+
+**关键要求：**
+1. summary: 包含完整的两个部分（概览统计、按用户总结）
+2. sentences数组结构：
+   - 用户名单独一个sentence（无refs）
+   - 用户的每个话题是一个sentence（有refs）
+   - 话题格式：以"- **话题名**: "开头
+3. refs: 每个话题sentence引用的消息编号（对应消息前的[数字]）
+4. 只总结选定的用户：${selectedParticipants.join('、')}
+5. 每个话题结合上下文完整总结，避免重复
+6. 忽略无实质内容的消息（表情、"好的"、"收到"等）
+` : `
+{
+  "summary": "📊 概览统计\\n消息总数: XX条\\n参与人数: XX人\\n参与者列表: XXX、XXX、XXX\\n\\n💬 讨论话题\\n\\n**话题1标题** (XX条消息)\\n核心内容的叙事描述...\\n\\n**话题2标题** (XX条消息)\\n核心内容的叙事描述...",
   "sentences": [
     {
       "text": "📊 概览统计部分的完整内容",
@@ -270,20 +342,17 @@ ${contextMessages.length > 0 ? '注意：可以参考背景上下文来更好地
     {
       "text": "**话题2标题** (XX条消息)\\n核心内容的叙事描述...",
       "refs": [8, 10, 12]
-    },
-    {
-      "text": "🎯 与我相关的内容部分的完整内容",
-      "refs": [相关消息编号]
     }
   ]
 }
 
 **关键要求：**
-1. summary: 包含完整的三个部分（概览统计、讨论话题、与我相关的内容）
+1. summary: 包含完整的两个部分（概览统计、讨论话题）
 2. sentences: 将summary拆分成段落，每个话题一个sentence
 3. refs: 每个sentence引用的消息编号（对应消息前的[数字]）
 4. 讨论话题部分必须用叙事方式描述，不要列举时间线
 5. 忽略无实质内容的消息（表情、"好的"、"收到"等）
+`}
 
 **最后提醒：直接返回纯JSON对象！不要添加\`\`\`json标记！不要添加任何解释文字！**`;
     }
